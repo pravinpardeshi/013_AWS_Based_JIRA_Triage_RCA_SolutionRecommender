@@ -1,0 +1,189 @@
+<div class="feedback-container">
+  <div class="feedback-header">
+    <h2>Feedback Analytics</h2>
+    <div class="feedback-controls">
+      <button class="btn btn-primary btn-sm" ng-click="refresh()" ng-disabled="loading">
+        <i class="fas fa-sync-alt" ng-class="{'fa-spin': loading}"></i> Refresh
+      </button>
+      <button class="btn btn-secondary btn-sm" ng-click="runAnalysis()" ng-disabled="analyzing">
+        <i class="fas fa-magic" ng-class="{'fa-spin': analyzing}"></i> {{analyzing ? 'Analyzing...' : 'Run AI Analysis'}}
+      </button>
+    </div>
+  </div>
+
+  <div class="loading-overlay" ng-if="loading && !stats">
+    <div class="spinner"></div>
+    <p>Loading feedback data...</p>
+  </div>
+
+  <div class="error-card" ng-if="error">
+    <p>{{error}}</p>
+    <button class="btn btn-secondary btn-sm" ng-click="refresh()">Retry</button>
+  </div>
+
+  <!-- Stats Overview -->
+  <div ng-if="stats && !loading" class="feedback-stats">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value">{{stats.total_feedback}}</div>
+        <div class="stat-label">Total Feedback</div>
+      </div>
+      <div class="stat-card" ng-class="{'stat-good': stats.average_rating >= 4, 'stat-warn': stats.average_rating >= 2.5 && stats.average_rating < 4, 'stat-bad': stats.average_rating < 2.5}">
+        <div class="stat-value">{{stats.average_rating || 'N/A'}}</div>
+        <div class="stat-label">Average Rating</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{stats.feedback_with_comments}}</div>
+        <div class="stat-label">With Comments</div>
+      </div>
+      <div class="stat-card" ng-class="{'stat-bad': stats.improvement_needed}">
+        <div class="stat-value">{{stats.improvement_needed ? 'YES' : 'NO'}}</div>
+        <div class="stat-label">Improvement Needed</div>
+      </div>
+    </div>
+
+    <!-- Rating Distribution -->
+    <div class="feedback-section" ng-if="stats.rating_distribution">
+      <h4>Rating Distribution</h4>
+      <div class="rating-bars">
+        <div class="rating-bar-row" ng-repeat="i in [5,4,3,2,1]">
+          <span class="rating-label">{{i}} <span class="star filled">&#9733;</span></span>
+          <div class="rating-bar-track">
+            <div class="rating-bar-fill" ng-style="{'width': getBarWidth(stats.rating_distribution[i] || 0)}"></div>
+          </div>
+          <span class="rating-count">{{stats.rating_distribution[i] || 0}}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Component Breakdown -->
+    <div class="feedback-section" ng-if="stats.by_component">
+      <h4>Feedback by Component</h4>
+      <div class="breakdown-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Component</th>
+              <th>Count</th>
+              <th>Avg Rating</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr ng-repeat="(comp, data) in stats.by_component">
+              <td>{{comp || 'N/A'}}</td>
+              <td>{{data.count}}</td>
+              <td>{{data.avg_rating}}</td>
+              <td>
+                <span class="badge" ng-class="{'badge-success': data.avg_rating >= 4, 'badge-warning': data.avg_rating >= 2.5 && data.avg_rating < 4, 'badge-danger': data.avg_rating < 2.5}">
+                  {{data.avg_rating >= 4 ? 'Good' : data.avg_rating >= 2.5 ? 'Fair' : 'Poor'}}
+                </span>
+              </td>
+            </tr>
+            <tr ng-if="Object.keys(stats.by_component).length === 0">
+              <td colspan="4" class="empty-row">No component data yet</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Technology Breakdown -->
+    <div class="feedback-section" ng-if="stats.by_technology">
+      <h4>Feedback by Technology</h4>
+      <div class="breakdown-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Technology</th>
+              <th>Count</th>
+              <th>Avg Rating</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr ng-repeat="(tech, data) in stats.by_technology">
+              <td>{{tech || 'N/A'}}</td>
+              <td>{{data.count}}</td>
+              <td>{{data.avg_rating}}</td>
+              <td>
+                <span class="badge" ng-class="{'badge-success': data.avg_rating >= 4, 'badge-warning': data.avg_rating >= 2.5 && data.avg_rating < 4, 'badge-danger': data.avg_rating < 2.5}">
+                  {{data.avg_rating >= 4 ? 'Good' : data.avg_rating >= 2.5 ? 'Fair' : 'Poor'}}
+                </span>
+              </td>
+            </tr>
+            <tr ng-if="Object.keys(stats.by_technology).length === 0">
+              <td colspan="4" class="empty-row">No technology data yet</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Low-Rated Tickets -->
+  <div class="feedback-section" ng-if="lowRated.length > 0">
+    <h4>Low-Rated Tickets (1-2 Stars)</h4>
+    <div class="low-rated-list">
+      <div class="low-rated-card" ng-repeat="ticket in lowRated">
+        <div class="low-rated-header">
+          <span class="ticket-ref">{{ticket.ticket_ref}}</span>
+          <span class="rating-display">
+            <span ng-repeat="i in getRating(ticket.rating) track by $index" class="star filled">&#9733;</span>
+          </span>
+        </div>
+        <p class="low-rated-desc">{{ticket.description | limitTo:150}}{{ticket.description.length > 150 ? '...' : ''}}</p>
+        <p class="low-rated-comment" ng-if="ticket.feedback_comment">"{{ticket.feedback_comment}}"</p>
+        <div class="low-rated-meta">
+          <span ng-if="ticket.component">{{ticket.component}}</span>
+          <span ng-if="ticket.technology">{{ticket.technology}}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Analysis Result -->
+  <div class="feedback-section analysis-result" ng-if="analysisResult">
+    <h4>AI Analysis Result</h4>
+    <div class="analysis-status" ng-class="{'status-success': analysisResult.status === 'success', 'status-warn': analysisResult.status === 'insufficient_data', 'status-error': analysisResult.status === 'error'}">
+      {{analysisResult.message || 'Analysis complete'}}
+    </div>
+    <div ng-if="analysisResult.improvements && analysisResult.improvements.length > 0">
+      <p class="analysis-summary">Generated {{analysisResult.improvements_generated}} prompt improvement(s):</p>
+      <div class="improvement-card" ng-repeat="imp in analysisResult.improvements">
+        <div class="improvement-type">
+          <span class="badge badge-info">{{imp.adjustment_type}}</span>
+        </div>
+        <p class="improvement-desc">{{imp.description}}</p>
+        <pre class="improvement-prompt">{{imp.prompt_addition}}</pre>
+        <div class="improvement-meta">
+          <span>Created: {{imp.created_at | date:'medium'}}</span>
+          <span>Applied: {{imp.applied_count || 0}} times</span>
+          <button class="btn btn-sm" ng-class="{'btn-danger': imp.active, 'btn-success': !imp.active}" ng-click="toggleAdjustment(imp)">
+            {{imp.active ? 'Deactivate' : 'Activate'}}
+          </button>
+        </div>
+      </div>
+    </div>
+    <pre class="llm-response" ng-if="analysisResult.llm_response">{{analysisResult.llm_response}}</pre>
+  </div>
+
+  <!-- Active Adjustments -->
+  <div class="feedback-section" ng-if="adjustments.active.length > 0">
+    <h4>Active Prompt Adjustments</h4>
+    <div class="adjustment-list">
+      <div class="adjustment-card" ng-repeat="adj in adjustments.active">
+        <div class="adjustment-header">
+          <span class="badge badge-success">Active</span>
+          <span class="badge badge-info">{{adj.adjustment_type}}</span>
+        </div>
+        <p class="adjustment-desc">{{adj.description}}</p>
+        <pre class="adjustment-prompt">{{adj.prompt_addition}}</pre>
+        <div class="adjustment-meta">
+          <span>Applied {{adj.applied_count || 0}} times</span>
+          <span>Created {{adj.created_at | date:'medium'}}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

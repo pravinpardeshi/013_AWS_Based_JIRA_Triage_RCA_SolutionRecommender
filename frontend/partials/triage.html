@@ -1,0 +1,101 @@
+<div class="triage-container">
+    <div class="triage-header">
+        <h2>Triage & Root Cause Analysis</h2>
+        <p>Describe the problem and get AI-powered triage, RCA, and solution recommendations.</p>
+    </div>
+
+    <div class="triage-form">
+        <div class="form-group">
+            <label>Problem Description *</label>
+            <textarea
+                ng-model="state.description"
+                placeholder="Describe the issue in detail. Include error messages, affected services, and any observations..."
+                rows="5"
+                ng-disabled="state.loading"
+            ></textarea>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Component</label>
+                <input type="text" ng-model="state.component" placeholder="e.g., JDBC Pool, JMS, Servlet Container" ng-disabled="state.loading">
+            </div>
+            <div class="form-group">
+                <label>Technology</label>
+                <input type="text" ng-model="state.technology" placeholder="e.g., Spring Boot, Hibernate, Apache Kafka" ng-disabled="state.loading">
+            </div>
+            <div class="form-group">
+                <label>Environment</label>
+                <select ng-model="state.environment" ng-disabled="state.loading">
+                    <option value="">-- Select --</option>
+                    <option ng-repeat="env in environments" value="{{env}}">{{env}}</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button class="btn btn-primary" ng-click="submitTriage()" ng-disabled="state.loading || !state.description.trim()" ng-if="!state.loading">
+                Analyze & Triage
+            </button>
+            <button class="btn btn-danger" ng-click="stopStreaming()" ng-if="state.loading">
+                Stop
+            </button>
+            <button class="btn btn-secondary" ng-click="reset()">Reset</button>
+        </div>
+    </div>
+
+    <div class="streaming-progress" ng-if="state.streaming">
+        <div class="progress-bar">
+            <div class="progress-bar-fill"></div>
+        </div>
+        <p>Analyzing against historical data...</p>
+    </div>
+
+    <div class="triage-result" ng-if="state.result">
+        <div class="result-header">
+            <h3>Analysis Result</h3>
+            <div class="metrics-bar" ng-if="state.result.metrics">
+                <span class="metric" title="Total response time">
+                    <span class="metric-icon">&#9201;</span> {{state.result.metrics.total_ms}}ms
+                </span>
+                <span class="metric" title="Embedding generation">
+                    <span class="metric-icon">&#9879;</span> {{state.result.metrics.embedding_ms}}ms
+                </span>
+                <span class="metric" title="LLM inference">
+                    <span class="metric-icon">&#9881;</span> {{state.result.metrics.llm_ms}}ms
+                </span>
+                <span class="metric" title="Token usage">
+                    <span class="metric-icon">&#9997;</span> {{state.result.metrics.prompt_tokens}}+{{state.result.metrics.completion_tokens}}
+                </span>
+                <span class="metric cache-hit" ng-if="state.result.metrics.cached">
+                    &#9889; Cached
+                </span>
+            </div>
+        </div>
+        <div class="result-card" ng-class="{'error-card': state.result.isError}">
+            <div ng-bind-html="formatMarkdown(state.result.analysis)"></div>
+            <span class="streaming-cursor" ng-if="state.result.streaming"></span>
+        </div>
+
+        <div class="similar-tickets" ng-if="!state.result.streaming && state.result.similar_tickets && state.result.similar_tickets.length > 0">
+            <h4>Similar Historical Tickets</h4>
+            <div class="ticket-grid">
+                <div class="ticket-card clickable" ng-repeat="t in state.result.similar_tickets" ng-click="openTicket(t.ticket_id)">
+                    <span class="ticket-id">{{t.ticket_id}}</span>
+                    <span class="similarity-badge">{{t.similarity}}%</span>
+                    <p>{{t.summary}}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="save-ticket-section" ng-if="!state.result.streaming && !state.result.isError">
+            <button class="btn-save-ticket" ng-click="saveAsTicket()" ng-disabled="state.savingTicket">
+                <span ng-if="!state.savingTicket">Save as Ticket</span>
+                <span ng-if="state.savingTicket">Saving...</span>
+            </button>
+            <span class="save-success" ng-if="state.ticketSaved">
+                Saved! <a href="#!/tickets">View Tickets</a>
+            </span>
+        </div>
+    </div>
+</div>

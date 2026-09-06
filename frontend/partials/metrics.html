@@ -1,0 +1,395 @@
+<div class="metrics-container">
+    <div class="metrics-header">
+        <h2>Observability Metrics</h2>
+        <div class="health-controls">
+            <label><input type="checkbox" ng-model="autoRefresh" ng-change="toggleAutoRefresh()"> Auto-refresh (5s)</label>
+            <button class="btn btn-secondary btn-sm" ng-click="refresh()">Refresh Now</button>
+        </div>
+    </div>
+
+    <div class="health-loading" ng-if="loading">
+        <div class="spinner"></div>
+        <p>Loading metrics...</p>
+    </div>
+
+    <div class="health-error" ng-if="error">
+        <p>{{error}}</p>
+        <button class="btn btn-secondary" ng-click="refresh()">Retry</button>
+    </div>
+
+    <div ng-if="data && !loading">
+
+        <!-- Gauges overview -->
+        <div class="metrics-section">
+            <h3>Overview</h3>
+            <div class="metrics-gauges">
+                <div class="gauge-card">
+                    <span class="gauge-value">{{data.gauges.uptime_seconds | formatUptime}}</span>
+                    <span class="gauge-label">Uptime</span>
+                </div>
+                <div class="gauge-card">
+                    <span class="gauge-value">{{data.gauges.total_tickets}}</span>
+                    <span class="gauge-label">Total Tickets</span>
+                </div>
+                <div class="gauge-card">
+                    <span class="gauge-value">{{data.gauges.active_sessions}}</span>
+                    <span class="gauge-label">Active Sessions</span>
+                </div>
+                <div class="gauge-card">
+                    <span class="gauge-value" ng-class="{'text-ok': data.cache.hit_rate >= 0.5, 'text-warning': data.cache.hit_rate < 0.5 && data.cache.hit_rate > 0, 'text-error': data.cache.hit_rate === 0}">{{(data.cache.hit_rate * 100) | number:1}}%</span>
+                    <span class="gauge-label">Cache Hit Rate</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- HTTP Metrics -->
+        <div class="metrics-section">
+            <h3>HTTP Requests</h3>
+            <div class="metrics-table-wrap">
+                <table class="metrics-table">
+                    <thead>
+                        <tr>
+                            <th>Endpoint</th>
+                            <th>Method</th>
+                            <th>Status</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr ng-repeat="(key, val) in data.http.requests">
+                            <td><code>{{key}}</code></td>
+                            <td>{{parseLabel(key, 'method')}}</td>
+                            <td><span class="badge" ng-class="{'badge-success': parseLabel(key, 'status') === '200', 'badge-danger': parseLabel(key, 'status') >= '400'}">{{parseLabel(key, 'status')}}</span></td>
+                            <td>{{val}}</td>
+                        </tr>
+                        <tr ng-if="Object.keys(data.http.requests).length === 0">
+                            <td colspan="4" class="empty-row">No requests recorded yet</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- HTTP Latency -->
+        <div class="metrics-section" ng-if="Object.keys(data.http.duration).length > 0">
+            <h3>HTTP Latency</h3>
+            <div class="metrics-table-wrap">
+                <table class="metrics-table">
+                    <thead>
+                        <tr>
+                            <th>Endpoint</th>
+                            <th>Requests</th>
+                            <th>Avg</th>
+                            <th>P50</th>
+                            <th>P95</th>
+                            <th>Max</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr ng-repeat="(key, val) in data.http.duration">
+                            <td><code>{{key}}</code></td>
+                            <td>{{val.count}}</td>
+                            <td>{{val.avg * 1000 | number:0}}ms</td>
+                            <td>{{val.p50 * 1000 | number:0}}ms</td>
+                            <td>{{val.p95 * 1000 | number:0}}ms</td>
+                            <td>{{val.max * 1000 | number:0}}ms</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- LLM Metrics -->
+        <div class="metrics-section">
+            <h3>LLM (Ollama)</h3>
+            <div class="metrics-two-col">
+                <div>
+                    <h4>Requests</h4>
+                    <div class="metrics-table-wrap">
+                        <table class="metrics-table">
+                            <thead>
+                                <tr><th>Operation</th><th>Count</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="(key, val) in data.llm.requests">
+                                    <td><code>{{key}}</code></td>
+                                    <td>{{val}}</td>
+                                </tr>
+                                <tr ng-if="Object.keys(data.llm.requests).length === 0">
+                                    <td colspan="2" class="empty-row">No LLM requests yet</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div>
+                    <h4>Tokens Consumed</h4>
+                    <div class="metrics-table-wrap">
+                        <table class="metrics-table">
+                            <thead>
+                                <tr><th>Type</th><th>Count</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="(key, val) in data.llm.tokens">
+                                    <td><code>{{key}}</code></td>
+                                    <td>{{val}}</td>
+                                </tr>
+                                <tr ng-if="Object.keys(data.llm.tokens).length === 0">
+                                    <td colspan="2" class="empty-row">No tokens recorded</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LLM Latency -->
+        <div class="metrics-section" ng-if="Object.keys(data.llm.duration).length > 0">
+            <h3>LLM Latency</h3>
+            <div class="metrics-table-wrap">
+                <table class="metrics-table">
+                    <thead>
+                        <tr>
+                            <th>Model / Operation</th>
+                            <th>Requests</th>
+                            <th>Avg</th>
+                            <th>P50</th>
+                            <th>P95</th>
+                            <th>Max</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr ng-repeat="(key, val) in data.llm.duration">
+                            <td><code>{{key}}</code></td>
+                            <td>{{val.count}}</td>
+                            <td>{{val.avg * 1000 | number:0}}ms</td>
+                            <td>{{val.p50 * 1000 | number:0}}ms</td>
+                            <td>{{val.p95 * 1000 | number:0}}ms</td>
+                            <td>{{val.max * 1000 | number:0}}ms</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Embedding Metrics -->
+        <div class="metrics-section">
+            <h3>Embeddings</h3>
+            <div class="metrics-two-col">
+                <div>
+                    <h4>Requests</h4>
+                    <div class="metrics-table-wrap">
+                        <table class="metrics-table">
+                            <thead>
+                                <tr><th>Model</th><th>Count</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="(key, val) in data.embedding.requests">
+                                    <td><code>{{key}}</code></td>
+                                    <td>{{val}}</td>
+                                </tr>
+                                <tr ng-if="Object.keys(data.embedding.requests).length === 0">
+                                    <td colspan="2" class="empty-row">No embedding requests</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div>
+                    <h4>Latency</h4>
+                    <div class="metrics-table-wrap">
+                        <table class="metrics-table">
+                            <thead>
+                                <tr><th>Model</th><th>Avg</th><th>P95</th><th>Max</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="(key, val) in data.embedding.duration">
+                                    <td><code>{{key}}</code></td>
+                                    <td>{{val.avg * 1000 | number:0}}ms</td>
+                                    <td>{{val.p95 * 1000 | number:0}}ms</td>
+                                    <td>{{val.max * 1000 | number:0}}ms</td>
+                                </tr>
+                                <tr ng-if="Object.keys(data.embedding.duration).length === 0">
+                                    <td colspan="4" class="empty-row">No embedding data</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Database Metrics -->
+        <div class="metrics-section">
+            <h3>Database</h3>
+            <div class="metrics-two-col">
+                <div>
+                    <h4>Queries</h4>
+                    <div class="metrics-table-wrap">
+                        <table class="metrics-table">
+                            <thead>
+                                <tr><th>Operation</th><th>Status</th><th>Count</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="(key, val) in data.database.queries">
+                                    <td><code>{{parseDbOp(key)}}</code></td>
+                                    <td><span class="badge" ng-class="{'badge-success': parseDbStatus(key)==='ok', 'badge-danger': parseDbStatus(key)==='error'}">{{parseDbStatus(key)}}</span></td>
+                                    <td>{{val}}</td>
+                                </tr>
+                                <tr ng-if="Object.keys(data.database.queries).length === 0">
+                                    <td colspan="3" class="empty-row">No queries recorded</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div>
+                    <h4>Latency</h4>
+                    <div class="metrics-table-wrap">
+                        <table class="metrics-table">
+                            <thead>
+                                <tr><th>Operation</th><th>Avg</th><th>P95</th><th>Max</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="(key, val) in data.database.duration">
+                                    <td><code>{{key}}</code></td>
+                                    <td>{{val.avg * 1000 | number:0}}ms</td>
+                                    <td>{{val.p95 * 1000 | number:0}}ms</td>
+                                    <td>{{val.max * 1000 | number:0}}ms</td>
+                                </tr>
+                                <tr ng-if="Object.keys(data.database.duration).length === 0">
+                                    <td colspan="4" class="empty-row">No DB latency data</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vector Search -->
+        <div class="metrics-section" ng-if="Object.keys(data.vector_search.duration).length > 0">
+            <h3>Vector Search (pgvector)</h3>
+            <div class="metrics-table-wrap">
+                <table class="metrics-table">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Count</th>
+                            <th>Avg</th>
+                            <th>P50</th>
+                            <th>P95</th>
+                            <th>Max</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr ng-repeat="(key, val) in data.vector_search.duration">
+                            <td><code>similarity_search</code></td>
+                            <td>{{val.count}}</td>
+                            <td>{{val.avg * 1000 | number:1}}ms</td>
+                            <td>{{val.p50 * 1000 | number:1}}ms</td>
+                            <td>{{val.p95 * 1000 | number:1}}ms</td>
+                            <td>{{val.max * 1000 | number:1}}ms</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Cache & Guardrails side by side -->
+        <div class="metrics-two-col">
+            <!-- Cache -->
+            <div class="metrics-section">
+                <h3>Cache</h3>
+                <div class="metrics-mini-cards">
+                    <div class="mini-card">
+                        <span class="mini-value">{{data.cache.sizes.embedding || 0}}</span>
+                        <span class="mini-label">Embedding Entries</span>
+                    </div>
+                    <div class="mini-card">
+                        <span class="mini-value">{{data.cache.sizes.chat || 0}}</span>
+                        <span class="mini-label">Chat Entries</span>
+                    </div>
+                </div>
+                <div class="metrics-table-wrap" ng-if="Object.keys(data.cache.operations).length > 0">
+                    <table class="metrics-table">
+                        <thead>
+                            <tr><th>Operation</th><th>Count</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr ng-repeat="(key, val) in data.cache.operations">
+                                <td>
+                                    <span class="badge" ng-class="{'badge-success': key==='hit', 'badge-warning': key==='miss', 'badge-secondary': key==='evict'}">{{key}}</span>
+                                </td>
+                                <td>{{val}}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Guardrails -->
+            <div class="metrics-section">
+                <h3>Guardrails</h3>
+                <div class="metrics-mini-cards">
+                    <div class="mini-card">
+                        <span class="mini-value text-ok">{{data.rate_limiter.allowed || 0}}</span>
+                        <span class="mini-label">Rate Limit Passed</span>
+                    </div>
+                    <div class="mini-card">
+                        <span class="mini-value" ng-class="{'text-error': data.rate_limiter.rejected > 0}">{{data.rate_limiter.rejected || 0}}</span>
+                        <span class="mini-label">Rate Limited (429)</span>
+                    </div>
+                    <div class="mini-card">
+                        <span class="mini-value" ng-class="{'text-error': data.guardrails.blocked.length > 0}">{{totalBlocked()}}</span>
+                        <span class="mini-label">Guardrail Blocks</span>
+                    </div>
+                </div>
+                <div class="metrics-table-wrap" ng-if="Object.keys(data.guardrails.duration).length > 0">
+                    <table class="metrics-table">
+                        <thead>
+                            <tr><th>Validation</th><th>Avg</th><th>P95</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr ng-repeat="(key, val) in data.guardrails.duration">
+                                <td><code>validate_request</code></td>
+                                <td>{{val.avg * 1000 | number:1}}ms</td>
+                                <td>{{val.p95 * 1000 | number:1}}ms</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Circuit Breaker -->
+        <div class="metrics-section">
+            <h3>Circuit Breaker</h3>
+            <div class="metrics-mini-cards">
+                <div class="mini-card">
+                    <span class="mini-value" ng-class="{'text-ok': data.circuit_breaker.state === 0, 'text-error': data.circuit_breaker.state === 1, 'text-warning': data.circuit_breaker.state === 2}">{{circuitStateLabel()}}</span>
+                    <span class="mini-label">State</span>
+                </div>
+            </div>
+            <div class="metrics-table-wrap" ng-if="Object.keys(data.circuit_breaker.transitions).length > 0">
+                <table class="metrics-table">
+                    <thead>
+                        <tr><th>Transition</th><th>Count</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr ng-repeat="(key, val) in data.circuit_breaker.transitions">
+                            <td><code>{{key}}</code></td>
+                            <td>{{val}}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="health-meta" ng-if="data && !loading">
+        <p>Last refreshed: {{lastRefreshed | date:'medium'}}</p>
+    </div>
+</div>

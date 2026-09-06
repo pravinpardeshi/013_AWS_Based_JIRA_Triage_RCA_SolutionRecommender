@@ -1,0 +1,15 @@
+[project]
+name = "019-aws-jira-ticket-solution"
+version = "2.0.0"
+description = "JIRA Triage, RCA, Solution Recommendation & Knowledge Agent - RAG-powered assistant with LangGraph agentic AI, deployed on AWS"
+readme = "README.md"
+authors = [
+    { name = "Pravin Pardeshi", email = "pravin.pardeshi@gmail.com" }
+]
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"

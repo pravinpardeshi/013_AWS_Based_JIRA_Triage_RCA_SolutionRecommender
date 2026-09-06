@@ -1,0 +1,183 @@
+<div class="tickets-page">
+  <div class="tickets-header">
+    <h2>Triage Tickets</h2>
+    <div class="tickets-controls">
+      <input type="text" ng-model="searchQuery" placeholder="Search tickets..." class="search-input">
+      <select ng-model="statusFilter" ng-change="filterTickets()" class="status-filter">
+        <option value="all">All Status</option>
+        <option value="open">Open</option>
+        <option value="in_progress">In Progress</option>
+        <option value="resolved">Resolved</option>
+        <option value="closed">Closed</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Table View -->
+  <div class="tickets-table-container" ng-show="!selectedTicket">
+    <div class="loading" ng-show="loading">Loading tickets...</div>
+
+    <div class="no-tickets" ng-show="!loading && tickets.length === 0">
+      No triage tickets found. Create tickets from the Triage tab.
+    </div>
+
+    <table class="tickets-table" ng-show="!loading && tickets.length > 0">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Component</th>
+          <th>Technology</th>
+          <th>Status</th>
+          <th>Rating</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="ticket in tickets" ng-click="selectTicket(ticket)" class="clickable-row">
+          <td class="ticket-id">{{ticket.ticket_id}}</td>
+          <td>{{ticket.component || 'N/A'}}</td>
+          <td>{{ticket.technology || 'N/A'}}</td>
+          <td>
+            <span class="status-badge status-{{ticket.status}}">{{ticket.status}}</span>
+          </td>
+          <td>
+            <span class="rating" ng-show="ticket.rating">
+              <span ng-repeat="i in getRating(ticket.rating) track by $index" class="star filled">&#9733;</span>
+              <span ng-repeat="i in getEmptyRating(ticket.rating) track by $index" class="star">&#9733;</span>
+            </span>
+            <span class="no-rating" ng-show="!ticket.rating">N/A</span>
+          </td>
+          <td>{{ticket.created_at | date:'medium'}}</td>
+          <td>
+            <button class="btn-view" ng-click="selectTicket(ticket); $event.stopPropagation()">View</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Detail View -->
+  <div class="ticket-detail" ng-show="selectedTicket">
+    <button class="btn-back" ng-click="deselectTicket()">&larr; Back to list</button>
+
+    <div class="ticket-detail-header">
+      <h3>{{selectedTicket.ticket_id}}</h3>
+      <div class="ticket-actions">
+        <button class="btn-edit" ng-click="startEdit()" ng-if="!editing">Edit</button>
+        <button class="btn-cancel-edit" ng-click="cancelEdit()" ng-if="editing">Cancel</button>
+        <button class="btn-save-edit" ng-click="saveEdit()" ng-if="editing">Save</button>
+        <select ng-model="selectedTicket.status" ng-change="updateStatus()" class="status-select">
+          <option value="open">Open</option>
+          <option value="in_progress">In Progress</option>
+          <option value="resolved">Resolved</option>
+          <option value="closed">Closed</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- View Mode -->
+    <div ng-if="!editing">
+      <div class="ticket-info-grid">
+        <div class="info-card">
+          <label>Component</label>
+          <span>{{selectedTicket.component || 'N/A'}}</span>
+        </div>
+        <div class="info-card">
+          <label>Technology</label>
+          <span>{{selectedTicket.technology || 'N/A'}}</span>
+        </div>
+        <div class="info-card">
+          <label>Environment</label>
+          <span>{{selectedTicket.environment || 'N/A'}}</span>
+        </div>
+        <div class="info-card">
+          <label>Created</label>
+          <span>{{selectedTicket.created_at | date:'medium'}}</span>
+        </div>
+      </div>
+
+      <div class="ticket-section">
+        <h4>Description</h4>
+        <div class="ticket-description">{{selectedTicket.description}}</div>
+      </div>
+    </div>
+
+    <!-- Edit Mode -->
+    <div ng-if="editing" class="edit-form">
+      <div class="form-group">
+        <label>Description</label>
+        <textarea ng-model="editData.description" rows="4" class="edit-input"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Component</label>
+          <input type="text" ng-model="editData.component" class="edit-input">
+        </div>
+        <div class="form-group">
+          <label>Technology</label>
+          <input type="text" ng-model="editData.technology" class="edit-input">
+        </div>
+        <div class="form-group">
+          <label>Environment</label>
+          <select ng-model="editData.environment" class="edit-input">
+            <option value="">-- Select --</option>
+            <option ng-repeat="env in environments" value="{{env}}">{{env}}</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="ticket-section">
+      <h4>Analysis</h4>
+      <div class="ticket-analysis" ng-bind-html="renderAnalysis(selectedTicket.analysis)"></div>
+    </div>
+
+    <div class="ticket-section" ng-show="selectedTicket.similar_tickets && selectedTicket.similar_tickets.length > 0">
+      <h4>Similar Tickets</h4>
+      <ul class="similar-tickets-list">
+        <li ng-repeat="t in selectedTicket.similar_tickets">
+          <span class="similar-ticket-id">{{t.ticket_id || 'N/A'}}</span>
+          <span class="similar-ticket-summary">{{t.summary || 'No summary'}}</span>
+          <span class="similar-score">({{(t.score * 100).toFixed(0)}}% match)</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Feedback Section -->
+    <div class="ticket-section feedback-section">
+      <h4>Feedback</h4>
+      <div class="feedback-form" ng-show="!selectedTicket.rating">
+        <div class="rating-input">
+          <label>How accurate was this triage?</label>
+          <div class="star-rating">
+            <span ng-repeat="i in [1,2,3,4,5]"
+                  ng-click="setRating(i)"
+                  ng-mouseenter="hoverRating = i"
+                  ng-mouseleave="hoverRating = 0"
+                  class="star-btn"
+                  ng-class="{'active': i <= hoverRating || i <= feedback.rating}"
+                  ng-bind-html="'&#9733;'"></span>
+          </div>
+        </div>
+        <textarea ng-model="feedback.comment" placeholder="Optional comment..." class="feedback-comment"></textarea>
+        <button class="btn-submit-feedback" ng-click="submitFeedback()" ng-disabled="!feedback.rating">
+          Submit Feedback
+        </button>
+      </div>
+
+      <div class="feedback-display" ng-show="selectedTicket.rating">
+        <div class="rating-display">
+          <span class="star" ng-repeat="i in getRating(selectedTicket.rating) track by $index" class="filled">&#9733;</span>
+          <span class="star" ng-repeat="i in getEmptyRating(selectedTicket.rating) track by $index">&#9733;</span>
+        </div>
+        <p class="feedback-comment" ng-show="selectedTicket.feedback_comment">
+          "{{selectedTicket.feedback_comment}}"
+        </p>
+        <p class="feedback-time">Submitted {{selectedTicket.feedback_at | date:'medium'}}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="error" ng-show="error">{{error}}</div>
+</div>

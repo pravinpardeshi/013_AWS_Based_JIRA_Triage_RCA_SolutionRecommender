@@ -1,0 +1,98 @@
+<div class="chat-layout">
+    <aside class="chat-sidebar">
+        <div class="sidebar-header">
+            <h3>Chat Sessions</h3>
+            <button class="btn btn-sm btn-primary" ng-click="newChat()">+ New</button>
+        </div>
+        <ul class="session-list">
+            <li ng-repeat="s in sessions track by s.id"
+                class="session-item"
+                ng-class="{'session-active': activeSessionId === s.id}"
+                ng-click="loadSession(s)">
+                <span class="session-title">{{s.title || 'Untitled'}}</span>
+                <span class="session-date">{{s.created_at | date:'short'}}</span>
+                <div class="session-actions">
+                    <button class="btn-icon" ng-click="renameSession(s, $event)" title="Rename">&#9998;</button>
+                    <button class="btn-icon btn-icon-danger" ng-click="deleteSession(s, $event)" title="Delete">&#10005;</button>
+                </div>
+            </li>
+        </ul>
+        <div class="sidebar-empty" ng-if="sessions.length === 0">No sessions yet</div>
+    </aside>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2>Knowledge Base Chat</h2>
+            <div class="chat-controls">
+                <label>Results: <select ng-model="topK" ng-options="n for n in [3,5,8,10]"></select></label>
+                <button class="btn btn-secondary" ng-click="clearChat()">Clear</button>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="message-placeholder" ng-if="messages.length === 0">
+                <div class="placeholder-icon">&#128269;</div>
+                <h3>Ask about past JIRA tickets</h3>
+                <p>Search historical incidents, bugs, and their resolutions.</p>
+                <div class="suggestion-chips">
+                    <span class="chip" ng-click="inputMessage='What causes HTTP 503 errors?'; sendMessage()">HTTP 503 errors</span>
+                    <span class="chip" ng-click="inputMessage='How to fix JDBC connection pool exhaustion?'; sendMessage()">JDBC pool issues</span>
+                    <span class="chip" ng-click="inputMessage='What are common JMS reconnection failures?'; sendMessage()">JMS reconnection</span>
+                </div>
+            </div>
+
+            <div ng-repeat="msg in messages track by $index" class="message" ng-class="{'user-msg': msg.role==='user', 'assistant-msg': msg.role==='assistant', 'error-msg': msg.isError}">
+                <div class="message-avatar">{{msg.role === 'user' ? 'You' : 'AI'}}</div>
+                <div class="message-content">
+                    <div ng-bind-html="formatMarkdown(msg.content)"></div>
+                    <span class="streaming-cursor" ng-if="msg.streaming"></span>
+                    <div class="sources" ng-if="!msg.streaming && msg.sources && msg.sources.length > 0">
+                        <strong>Sources:</strong>
+                        <span ng-repeat="s in msg.sources" class="source-tag clickable" ng-click="openTicket(s.ticket_id)">
+                            {{s.ticket_id}} ({{s.similarity}}%)
+                        </span>
+                    </div>
+                    <div class="metrics-bar" ng-if="msg.metrics">
+                        <span class="metric" title="Total response time">
+                            <span class="metric-icon">&#9201;</span> {{msg.metrics.total_ms}}ms
+                        </span>
+                        <span class="metric" title="Embedding generation">
+                            <span class="metric-icon">&#9879;</span> {{msg.metrics.embedding_ms}}ms
+                        </span>
+                        <span class="metric" title="LLM inference">
+                            <span class="metric-icon">&#9881;</span> {{msg.metrics.llm_ms}}ms
+                        </span>
+                        <span class="metric" title="Token usage">
+                            <span class="metric-icon">&#9997;</span> {{msg.metrics.prompt_tokens}}+{{msg.metrics.completion_tokens}}
+                        </span>
+                        <span class="metric cache-hit" ng-if="msg.metrics.cached" title="Response served from cache">
+                            &#9889; Cached
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="typing-indicator" ng-if="loading && !streaming">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+
+        <div class="chat-input-area">
+            <div class="input-wrapper">
+                <textarea
+                    ng-model="inputMessage"
+                    ng-keydown="$event.keyCode === 13 && !$event.shiftKey && sendMessage()"
+                    placeholder="Ask about past incidents, bugs, solutions..."
+                    rows="2"
+                    ng-disabled="loading"
+                ></textarea>
+                <button class="btn btn-primary" ng-click="sendMessage()" ng-if="!loading" ng-disabled="!inputMessage.trim()">
+                    Send
+                </button>
+                <button class="btn btn-danger" ng-click="stopStreaming()" ng-if="loading">
+                    Stop
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

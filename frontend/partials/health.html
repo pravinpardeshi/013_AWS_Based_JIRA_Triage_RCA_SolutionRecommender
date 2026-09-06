@@ -1,0 +1,70 @@
+<div class="health-container">
+    <div class="health-header">
+        <h2>System Health</h2>
+        <div class="health-controls">
+            <label><input type="checkbox" ng-model="autoRefresh" ng-change="toggleAutoRefresh()"> Auto-refresh (5s)</label>
+            <button class="btn btn-secondary btn-sm" ng-click="refresh()">Refresh Now</button>
+        </div>
+    </div>
+
+    <div class="health-loading" ng-if="loading">
+        <div class="spinner"></div>
+        <p>Checking system health...</p>
+    </div>
+
+    <div class="health-error" ng-if="error">
+        <p>{{error}}</p>
+        <button class="btn btn-secondary" ng-click="refresh()">Retry</button>
+    </div>
+
+    <div class="health-grid" ng-if="health && !loading">
+        <div class="health-card" ng-class="{'health-ok': health.status === 'ok', 'health-degraded': health.status === 'degraded'}">
+            <div class="health-card-header">
+                <span class="health-indicator" ng-class="{'indicator-ok': health.status === 'ok', 'indicator-degraded': health.status !== 'ok'}"></span>
+                <h3>Overall Status</h3>
+            </div>
+            <p class="health-value">{{health.status | uppercase}}</p>
+        </div>
+
+        <div class="health-card" ng-class="{'health-ok': health.db === 'ok', 'health-error': health.db !== 'ok'}">
+            <div class="health-card-header">
+                <span class="health-indicator" ng-class="{'indicator-ok': health.db === 'ok', 'indicator-error': health.db !== 'ok'}"></span>
+                <h3>PostgreSQL Database</h3>
+            </div>
+            <p class="health-value">{{health.db}}</p>
+            <div class="health-details" ng-if="health.db === 'ok'">
+                <span>{{health.tickets}} tickets</span>
+                <span>{{health.sessions}} sessions</span>
+                <span>{{health.messages}} messages</span>
+            </div>
+        </div>
+
+        <div class="health-card" ng-class="{'health-ok': health.ollama === 'ok', 'health-error': health.ollama !== 'ok'}">
+            <div class="health-card-header">
+                <span class="health-indicator" ng-class="{'indicator-ok': health.ollama === 'ok', 'indicator-error': health.ollama !== 'ok'}"></span>
+                <h3>Ollama LLM</h3>
+            </div>
+            <p class="health-value">{{health.ollama}}</p>
+            <div class="health-details" ng-if="health.ollama === 'ok'">
+                <span ng-repeat="m in health.ollama_models">{{m}}<span ng-if="!$last">, </span></span>
+            </div>
+        </div>
+
+        <div class="health-card">
+            <div class="health-card-header">
+                <span class="health-indicator indicator-ok"></span>
+                <h3>Circuit Breaker</h3>
+            </div>
+            <p class="health-value" ng-class="{'text-ok': health.circuit_breaker === 'closed', 'text-warning': health.circuit_breaker === 'half_open', 'text-error': health.circuit_breaker === 'open'}">
+                {{health.circuit_breaker | uppercase}}
+            </p>
+            <div class="health-details">
+                <span>Closed = normal, Open = blocked, Half-open = testing</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="health-meta" ng-if="health && !loading">
+        <p>Last checked: {{lastChecked | date:'medium'}}</p>
+    </div>
+</div>

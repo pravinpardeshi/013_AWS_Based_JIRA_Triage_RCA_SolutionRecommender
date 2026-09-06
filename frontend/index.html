@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="jiraApp">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JIRA Triage & Knowledge Agent</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.3/angular.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.3/angular-route.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.3/angular-sanitize.min.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/services.js"></script>
+    <script src="js/controllers.js"></script>
+</head>
+<body ng-controller="MainController">
+    <!-- Sidebar -->
+    <aside class="sidebar" ng-class="{'collapsed': sidebarCollapsed}">
+        <div class="sidebar-header">
+            <div class="sidebar-brand" ng-hide="sidebarCollapsed">
+                <i class="fas fa-headset"></i>
+                <span>JIRA Agent</span>
+            </div>
+            <button class="sidebar-toggle" ng-click="toggleSidebar()">
+                <i class="fas" ng-class="sidebarCollapsed ? 'fa-angle-right' : 'fa-angle-left'"></i>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <span class="nav-section-title" ng-hide="sidebarCollapsed">Main Menu</span>
+                <ul>
+                    <li ng-class="{'active': isActive('/chat')}">
+                        <a href="#!/chat" title="AI Chat">
+                            <i class="fas fa-comments"></i>
+                            <span ng-hide="sidebarCollapsed">AI Chat</span>
+                        </a>
+                    </li>
+                    <li ng-class="{'active': isActive('/triage')}">
+                        <a href="#!/triage" title="Triage & RCA">
+                            <i class="fas fa-bug"></i>
+                            <span ng-hide="sidebarCollapsed">Triage & RCA</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section">
+                <span class="nav-section-title" ng-hide="sidebarCollapsed">Management</span>
+                <ul>
+                    <li ng-class="{'active': isActive('/tickets')}">
+                        <a href="#!/tickets" title="Tickets">
+                            <i class="fas fa-ticket-alt"></i>
+                            <span ng-hide="sidebarCollapsed">Tickets</span>
+                        </a>
+                    </li>
+                    <li ng-class="{'active': isActive('/feedback')}">
+                        <a href="#!/feedback" title="Feedback">
+                            <i class="fas fa-star"></i>
+                            <span ng-hide="sidebarCollapsed">Feedback</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section">
+                <span class="nav-section-title" ng-hide="sidebarCollapsed">System</span>
+                <ul>
+                    <li ng-class="{'active': isActive('/health')}">
+                        <a href="#!/health" title="Health">
+                            <i class="fas fa-heartbeat"></i>
+                            <span ng-hide="sidebarCollapsed">Health</span>
+                        </a>
+                    </li>
+                    <li ng-class="{'active': isActive('/metrics')}">
+                        <a href="#!/metrics" title="Metrics">
+                            <i class="fas fa-chart-bar"></i>
+                            <span ng-hide="sidebarCollapsed">Metrics</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <div class="sidebar-footer" ng-hide="sidebarCollapsed">
+            <div class="user-info">
+                <i class="fas fa-user-circle"></i>
+                <span>Admin</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content" ng-class="{'sidebar-collapsed': sidebarCollapsed}">
+        <header class="top-bar">
+            <div class="top-bar-left">
+                <h1 class="page-title">{{pageTitle}}</h1>
+            </div>
+            <div class="top-bar-right">
+                <button class="theme-toggle" ng-click="toggleTheme()" title="Toggle theme">
+                    <i class="fas" ng-class="isDarkTheme ? 'fa-sun' : 'fa-moon'"></i>
+                </button>
+                <span class="status-indicator" title="System Online">
+                    <i class="fas fa-circle"></i> Online
+                </span>
+            </div>
+        </header>
+        <div class="content-area">
+            <div ng-view></div>
+        </div>
+    </main>
+
+    <ticket-modal></ticket-modal>
+</body>
+</html>
