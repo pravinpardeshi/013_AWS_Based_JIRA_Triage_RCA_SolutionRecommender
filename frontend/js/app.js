@@ -43,7 +43,7 @@ app.config(['$routeProvider', '$locationProvider', function($routeProvider, $loc
             controller: 'FeedbackController'
         })
         .otherwise({
-            redirectTo: '/chat'
+            redirectTo: '/triage'
         });
 }]);
 
@@ -54,7 +54,7 @@ app.run(['$rootScope', '$location', function($rootScope, $location) {
 
     // Sidebar state
     $rootScope.sidebarCollapsed = false;
-    $rootScope.pageTitle = 'AI Chat';
+    $rootScope.pageTitle = 'Triage & RCA';
 
     $rootScope.toggleSidebar = function() {
         $rootScope.sidebarCollapsed = !$rootScope.sidebarCollapsed;

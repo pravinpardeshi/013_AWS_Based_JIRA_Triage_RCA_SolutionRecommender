@@ -1,6 +1,6 @@
 app.controller('MainController', ['$scope', '$rootScope', function($scope, $rootScope) {
     $scope.sidebarCollapsed = false;
-    $scope.pageTitle = 'AI Chat';
+    $scope.pageTitle = 'Triage & RCA';
     $scope.isDarkTheme = localStorage.getItem('theme') === 'dark';
 
     if ($scope.isDarkTheme) {
@@ -23,7 +23,7 @@ app.controller('MainController', ['$scope', '$rootScope', function($scope, $root
     };
 
     $rootScope.$on('$routeChangeSuccess', function(event, current) {
-        var path = window.location.hash.replace('#!', '') || '/chat';
+        var path = window.location.hash.replace('#!', '') || '/triage';
         var titles = {
             '/chat': 'AI Chat',
             '/triage': 'Triage & RCA',
@@ -325,10 +325,27 @@ app.controller('TriageController', ['$scope', 'ApiService', 'TriageState', funct
         }).then(function(response) {
             $scope.state.savingTicket = false;
             $scope.state.ticketSaved = true;
+            $scope.state.ticketId = response.data.id;
         }).catch(function(err) {
             $scope.state.savingTicket = false;
             console.error('Failed to save ticket:', err);
         });
+    };
+
+    $scope.pushToJira = function() {
+        if (!$scope.state.jiraIssueKey.trim() || $scope.state.pushingToJira) return;
+        $scope.state.pushingToJira = true;
+        $scope.state.jiraPushError = null;
+
+        ApiService.pushToJira($scope.state.ticketId, $scope.state.jiraIssueKey.trim(), $scope.state.jiraStatusUpdate || null)
+            .then(function(response) {
+                $scope.state.pushingToJira = false;
+                $scope.state.jiraPushed = true;
+            })
+            .catch(function(err) {
+                $scope.state.pushingToJira = false;
+                $scope.state.jiraPushError = (err.data && err.data.detail) || 'Failed to push to JIRA';
+            });
     };
 }]);
 

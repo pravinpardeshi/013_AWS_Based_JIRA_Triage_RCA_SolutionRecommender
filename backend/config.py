@@ -41,3 +41,8 @@ AGENTCORE_MEMORY_ENABLED = os.getenv("AGENTCORE_MEMORY_ENABLED", "false").lower(
 AGENTCORE_MEMORY_NAMESPACE = os.getenv("AGENTCORE_MEMORY_NAMESPACE", "jira-triage-agent")
 AGENTCORE_MEMORY_SHORT_TERM_ID = os.getenv("AGENTCORE_MEMORY_SHORT_TERM_ID", "")
 AGENTCORE_MEMORY_LONG_TERM_ID = os.getenv("AGENTCORE_MEMORY_LONG_TERM_ID", "")
+
+# JIRA Upstream Integration
+JIRA_BASE_URL = os.getenv("JIRA_BASE_URL", "")  # e.g. https://yourorg.atlassian.net
+JIRA_API_TOKEN = os.getenv("JIRA_API_TOKEN", "")
+JIRA_USER_EMAIL = os.getenv("JIRA_USER_EMAIL", "")

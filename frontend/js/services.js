@@ -220,6 +220,17 @@ app.factory('ApiService', ['$http', function($http) {
                 rating: rating,
                 comment: comment || null
             });
+        },
+
+        pushToJira: function(ticketId, jiraIssueKey, updateStatus) {
+            return $http.post(baseUrl + '/ticket/' + ticketId + '/jira-update', {
+                jira_issue_key: jiraIssueKey,
+                update_status: updateStatus || null
+            });
+        },
+
+        getJiraIssue: function(issueKey) {
+            return $http.get(baseUrl + '/jira/issue/' + encodeURIComponent(issueKey));
         }
     };
 }]);

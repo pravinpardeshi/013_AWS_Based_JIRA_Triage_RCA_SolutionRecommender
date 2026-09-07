@@ -1,5 +1,5 @@
 html {
-    font-size: 150%;
+    font-size: 127.5%;
 }
 
 :root {
@@ -2046,6 +2046,82 @@ body {
 .save-success a {
     color: var(--primary);
     text-decoration: underline;
+}
+
+.jira-push-section {
+    margin-top: 20px;
+}
+
+.jira-push-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.jira-push-divider::before,
+.jira-push-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border);
+}
+
+.jira-push-divider span {
+    padding: 0 12px;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.jira-push-form {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.jira-push-form .form-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.jira-push-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.jira-push-form .form-group label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.jira-push-form input,
+.jira-push-form select {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.jira-push-form .form-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.jira-push-form .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.jira-error {
+    color: var(--danger);
+    font-size: 0.85rem;
 }
 
 .no-tickets {

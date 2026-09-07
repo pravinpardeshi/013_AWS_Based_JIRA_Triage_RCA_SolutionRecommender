@@ -955,6 +955,124 @@ def api_deactivate_adjustment(adjustment_id: str):
     return {"ok": True}
 
 
+# --- JIRA Upstream Update Endpoint ---
+
+class JiraUpdateRequest(BaseModel):
+    jira_issue_key: str
+    comment: Optional[str] = None
+    update_status: Optional[str] = None  # e.g. "In Progress", "Resolved"
+    resolution_note: Optional[str] = None
+
+
+@app.post("/api/ticket/{ticket_id}/jira-update")
+async def api_push_to_jira(ticket_id: int, body: JiraUpdateRequest):
+    """Push AI-recommended solution from a triage ticket to upstream JIRA via REST API."""
+    from config import JIRA_BASE_URL, JIRA_API_TOKEN, JIRA_USER_EMAIL
+    import httpx
+
+    if not JIRA_BASE_URL or not JIRA_API_TOKEN or not JIRA_USER_EMAIL:
+        raise HTTPException(
+            status_code=500,
+            detail="JIRA integration not configured. Set JIRA_BASE_URL, JIRA_API_TOKEN, and JIRA_USER_EMAIL in .env"
+        )
+
+    # Fetch the triage ticket from DynamoDB
+    from database import get_triage_ticket
+    ticket = get_triage_ticket(ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail=f"Triage ticket {ticket_id} not found")
+
+    # Build the comment body from AI analysis
+    comment_parts = []
+    if body.comment:
+        comment_parts.append(body.comment)
+    else:
+        # Auto-generate comment from ticket data
+        comment_parts.append("## AI Triage Recommendation\n")
+        if ticket.get("root_cause_category"):
+            comment_parts.append(f"**Root Cause Category:** {ticket['root_cause_category']}")
+        if ticket.get("root_cause"):
+            comment_parts.append(f"\n**Root Cause Analysis:**\n{ticket['root_cause']}")
+        if ticket.get("solution"):
+            comment_parts.append(f"\n**Recommended Solution:**\n{ticket['solution']}")
+        if ticket.get("estimated_resolution_time"):
+            comment_parts.append(f"\n**Est. Resolution Time:** {ticket['estimated_resolution_time']}")
+        if ticket.get("similar_tickets"):
+            try:
+                sim = json.loads(ticket["similar_tickets"]) if isinstance(ticket["similar_tickets"], str) else ticket["similar_tickets"]
+                if sim:
+                    ids = [s.get("ticket_id", "") for s in sim[:5]]
+                    comment_parts.append(f"\n**Related Tickets:** {', '.join(ids)}")
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+    comment_body = "\n".join(comment_parts)
+    base = JIRA_BASE_URL.rstrip("/")
+    auth = (JIRA_USER_EMAIL, JIRA_API_TOKEN)
+
+    async with httpx.AsyncClient(auth=auth) as client:
+        # 1. Add comment
+        comment_url = f"{base}/rest/api/2/issue/{body.jira_issue_key}/comment"
+        resp = await client.post(comment_url, json={"body": comment_body})
+        if resp.status_code not in (200, 201):
+            raise HTTPException(status_code=resp.status_code, detail=f"JIRA comment failed: {resp.text}")
+
+        # 2. Update status if requested
+        if body.update_status:
+            transition_url = f"{base}/rest/api/2/issue/{body.jira_issue_key}/transitions"
+            resp = await client.get(transition_url)
+            if resp.status_code == 200:
+                transitions = resp.json()
+                target_transition = None
+                for t in transitions.get("transitions", []):
+                    if t["name"].lower() == body.update_status.lower():
+                        target_transition = t["id"]
+                        break
+                if target_transition:
+                    resp2 = await client.post(transition_url, json={"transition": {"id": target_transition}})
+                    if resp2.status_code not in (200, 204):
+                        return {"ok": True, "warning": f"Comment added but status update failed: {resp2.text}"}
+
+        # 3. Add resolution note if provided
+        if body.resolution_note:
+            update_url = f"{base}/rest/api/2/issue/{body.jira_issue_key}"
+            await client.put(update_url, json={"fields": {"resolution": {"name": "Fixed"}}})
+
+    return {"ok": True, "message": f"Pushed recommendation to {body.jira_issue_key}"}
+
+
+@app.get("/api/jira/issue/{issue_key}")
+async def api_get_jira_issue(issue_key: str):
+    """Fetch issue details from upstream JIRA."""
+    from config import JIRA_BASE_URL, JIRA_API_TOKEN, JIRA_USER_EMAIL
+    import httpx
+
+    if not JIRA_BASE_URL or not JIRA_API_TOKEN or not JIRA_USER_EMAIL:
+        raise HTTPException(status_code=500, detail="JIRA integration not configured")
+
+    auth = (JIRA_USER_EMAIL, JIRA_API_TOKEN)
+    url = f"{JIRA_BASE_URL.rstrip('/')}/rest/api/2/issue/{issue_key}"
+
+    async with httpx.AsyncClient(auth=auth) as client:
+        resp = await client.get(url)
+        if resp.status_code != 200:
+            raise HTTPException(status_code=resp.status_code, detail=f"JIRA fetch failed: {resp.text}")
+        data = resp.json()
+        fields = data.get("fields", {})
+        return {
+            "key": data.get("key"),
+            "summary": fields.get("summary"),
+            "status": fields.get("status", {}).get("name"),
+            "assignee": (fields.get("assignee") or {}).get("displayName"),
+            "priority": (fields.get("priority") or {}).get("name"),
+            "description": fields.get("description"),
+            "comments": [
+                {"author": c.get("author", {}).get("displayName"), "body": c.get("body"), "created": c.get("created")}
+                for c in fields.get("comment", {}).get("comments", [])
+            ],
+        }
+
+
 # Serve AngularJS frontend
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
 if os.path.exists(frontend_path):

@@ -97,5 +97,40 @@
                 Saved! <a href="#!/tickets">View Tickets</a>
             </span>
         </div>
+
+        <!-- Push to JIRA Section -->
+        <div class="jira-push-section" ng-if="!state.result.streaming && !state.result.isError && state.ticketSaved">
+            <div class="jira-push-divider">
+                <span>OR</span>
+            </div>
+            <div class="jira-push-form">
+                <div class="form-row">
+                    <div class="form-group" style="flex:2">
+                        <label>JIRA Issue Key *</label>
+                        <input type="text" ng-model="state.jiraIssueKey" placeholder="e.g. PROJ-1234" ng-disabled="state.pushingToJira">
+                    </div>
+                    <div class="form-group" style="flex:1">
+                        <label>Status Update</label>
+                        <select ng-model="state.jiraStatusUpdate" ng-disabled="state.pushingToJira">
+                            <option value="">-- No Change --</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Resolved">Resolved</option>
+                            <option value="Done">Done</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-primary" ng-click="pushToJira()" ng-disabled="state.pushingToJira || !state.jiraIssueKey.trim()">
+                        <i class="fas fa-upload"></i>
+                        <span ng-if="!state.pushingToJira">Push to JIRA</span>
+                        <span ng-if="state.pushingToJira">Pushing...</span>
+                    </button>
+                    <span class="save-success" ng-if="state.jiraPushed">
+                        Pushed to <a ng-href="jiraUrl" target="_blank">{{state.jiraIssueKey}}</a>
+                    </span>
+                    <span class="jira-error" ng-if="state.jiraPushError">{{state.jiraPushError}}</span>
+                </div>
+            </div>
+        </div>
     </div>
 </div>

@@ -30,16 +30,16 @@
             <div class="nav-section">
                 <span class="nav-section-title" ng-hide="sidebarCollapsed">Main Menu</span>
                 <ul>
-                    <li ng-class="{'active': isActive('/chat')}">
-                        <a href="#!/chat" title="AI Chat">
-                            <i class="fas fa-comments"></i>
-                            <span ng-hide="sidebarCollapsed">AI Chat</span>
-                        </a>
-                    </li>
                     <li ng-class="{'active': isActive('/triage')}">
                         <a href="#!/triage" title="Triage & RCA">
                             <i class="fas fa-bug"></i>
                             <span ng-hide="sidebarCollapsed">Triage & RCA</span>
+                        </a>
+                    </li>
+                    <li ng-class="{'active': isActive('/chat')}">
+                        <a href="#!/chat" title="AI Chat">
+                            <i class="fas fa-comments"></i>
+                            <span ng-hide="sidebarCollapsed">AI Chat</span>
                         </a>
                     </li>
                 </ul>
