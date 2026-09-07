@@ -22,10 +22,10 @@ A Retrieval-Augmented Generation (RAG) powered assistant that helps engineers un
 ## Architecture
 
 ```
-   ┌──────────────┐      ┌───────────────────┐        ┌─────────────────────┐
-   │   Frontend   │────▶│  FastAPI Backend   │────▶ │  AWS RDS PostgreSQL │
-   │  (AngularJS) │◀────│   (Uvicorn)        │◀──── │  + pgvector         │
-   └──────────────┘      └────────┬──────────┘        └─────────────────────┘
+   ┌──────────────┐      ┌───────────────────┐       ┌─────────────────────┐
+   │   Frontend   │────▶ │  FastAPI Backend  │ ────▶ │  AWS RDS PostgreSQL │
+   │  (AngularJS) │◀──── │   (Uvicorn)       │ ◀──── │  + pgvector         │
+   └──────────────┘      └────────┬──────────┘       └─────────────────────┘
                                   │
                   ┌───────────────┼───────────┐
                   │               │           │
@@ -443,15 +443,15 @@ The circuit breaker is a resilience pattern that prevents cascading failures whe
 #### How It Works (3 States)
 
 ```
-           ┌──────────┐  failures >= 3   ┌──────────┐  30s cooldown   ┌───────────┐
-  ───────▶│  CLOSED   │──────────────▶│   OPEN    │──────────────▶│ HALF-OPEN │
-  (normal) │           │               │           │               │            │
-           │  requests │               │  reject   │               │  test one  │
-           │  pass     │               │  all      │               │  request   │
-           └──────────┘               └──────────┘               └───────────┘
-                ▲                                                   │
-                │           success                                 │
-                └───────────────────────────────────────────────────┘
+           ┌───────────┐ failures >= 3   ┌───────────┐  30s cooldown   ┌───────────┐
+  ───────▶ │  CLOSED   │──────────────▶  │   OPEN    │──────────────▶  │ HALF-OPEN │
+  (normal) │           │                 │           │                 │           │
+           │  requests │                 │  reject   │                 │ test one  │
+           │  pass     │                 │  all      │                 │ request   │
+           └───────────┘                 └───────────┘                 └───────────┘
+                ▲                                                         │
+                │           success                                       │
+                └─────────────────────────────────────────────────────────┘
 ```
 
 | State | Behavior |
@@ -1217,11 +1217,11 @@ Feedback (1-2 stars) → AI Analysis → Prompt Improvement → Better Triage �
     │                         │                          │
     │  1. Rate ticket         │                          │
     │  (1-5 stars + comment)  │                          │
-    │──────────────────────▶ │                          │
+    │──────────────────────▶  │                          │
     │                         │                          │
     │                    save_triage_feedback()          │
     │                    record_feedback()               │
-    │                         │ ───────────────────────▶│
+    │                         │ ────────────────────────▶│
     │                         │                          │
     │                         │                          │  jira_triage_feedback
     │                         │                          │  (rating, comment,
@@ -1232,12 +1232,12 @@ Feedback (1-2 stars) → AI Analysis → Prompt Improvement → Better Triage �
     │  2. Trigger analysis    │                          │
     │  POST /api/feedback/    │                          │
     │       analyze           │                          │
-    │──────────────────────▶ │                          │
+    │───────────────────────▶ │                          │
     │                         │                          │
     │                    get_feedback_stats()            │
     │                    get_low_rated_tickets()         │
-    │                         │ ───────────────────────▶│
-    │                         │ ◀───────────────────────│
+    │                         │ ────────────────────────▶│
+    │                         │ ◀────────────────────────│
     │                         │                          │
     │                    Send to Bedrock Claude:         │
     │                    "Analyze these low-rated        │
@@ -1245,13 +1245,13 @@ Feedback (1-2 stars) → AI Analysis → Prompt Improvement → Better Triage �
     │                     improvements"                  │
     │                         │                          │
     │                         │    ┌──────────────┐      │
-    │                         │──▶│ Bedrock      │      │
+    │                         │──▶ │ Bedrock      │      │
     │                         │    │ Claude       │      │
-    │                         │◀──│ (analysis)   │      │
+    │                         │◀── │ (analysis)   │      │
     │                         │    └──────────────┘      │
     │                         │                          │
     │                    save_prompt_adjustment()        │
-    │                         │ ───────────────────────▶│
+    │                         │ ────────────────────────▶│
     │                         │                          │
     │                         │                          │  jira_triage_prompt_
     │                         │                          │  improvements
@@ -1263,29 +1263,29 @@ Feedback (1-2 stars) → AI Analysis → Prompt Improvement → Better Triage �
     │  3. Triage new ticket   │                          │
     │  POST /api/triage/      │                          │
     │       stream            │                          │
-    │───────────────────────▶│                          │
+    │───────────────────────▶ │                          │
     │                         │                          │
     │                    build_feedback_aware_           │
     │                    triage_prompt()                 │
-    │                         │────────────────────────▶│
-    │                         │◀────────────────────────│
+    │                         │─────────────────────────▶│
+    │                         │◀─────────────────────────│
     │                         │                          │
     │                         │   Base prompt            │
     │                         │   + active adjustments   │
     │                         │                          │
     │                    run_triage_agent_stream()       │
     │                         │    ┌──────────────┐      │
-    │                         │──▶│ Bedrock      │      │
+    │                         │──▶ │ Bedrock      │      │
     │                         │    │ Claude       │      │
-    │                         │◀──│ (enhanced)   │      │
+    │                         │◀── │ (enhanced)   │      │
     │                         │    └──────────────┘      │
     │                         │                          │
     │  4. Better analysis!    │                          │
-    │◀────────────────────── │                          │
+    │◀──────────────────────  │                          │
     │                         │                          │
     │  5. Rate higher (4-5)   │                          │
-    │──────────────────────▶ │                          │
-    │                         │ ───────────────────────▶│
+    │──────────────────────▶  │                          │
+    │                         │ ────────────────────────▶│
 ```
 
 ### Feedback API Endpoints
