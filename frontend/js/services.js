@@ -18,7 +18,15 @@ app.factory('TriageState', function() {
         environment: '',
         loading: false,
         streaming: false,
-        result: null
+        result: null,
+        savingTicket: false,
+        ticketSaved: false,
+        ticketId: null,
+        jiraIssueKey: '',
+        jiraStatusUpdate: '',
+        pushingToJira: false,
+        jiraPushed: false,
+        jiraPushError: null
     };
 });
 

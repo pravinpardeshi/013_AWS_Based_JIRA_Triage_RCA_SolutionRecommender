@@ -300,6 +300,14 @@ app.controller('TriageController', ['$scope', 'ApiService', 'TriageState', funct
         TriageState.result = null;
         TriageState.loading = false;
         TriageState.streaming = false;
+        TriageState.savingTicket = false;
+        TriageState.ticketSaved = false;
+        TriageState.ticketId = null;
+        TriageState.jiraIssueKey = '';
+        TriageState.jiraStatusUpdate = '';
+        TriageState.pushingToJira = false;
+        TriageState.jiraPushed = false;
+        TriageState.jiraPushError = null;
     };
 
     $scope.formatMarkdown = function(text) {
