@@ -34,3 +34,10 @@ BEDROCK_EMBEDDING_DIMENSION = int(os.getenv("BEDROCK_EMBEDDING_DIMENSION", "1024
 # App
 APP_HOST = os.getenv("APP_HOST", "0.0.0.0")
 APP_PORT = int(os.getenv("APP_PORT", "8000"))
+
+# AWS Bedrock AgentCore (for managed agent deployment)
+AGENTCORE_ENABLED = os.getenv("AGENTCORE_ENABLED", "false").lower() == "true"
+AGENTCORE_MEMORY_ENABLED = os.getenv("AGENTCORE_MEMORY_ENABLED", "false").lower() == "true"
+AGENTCORE_MEMORY_NAMESPACE = os.getenv("AGENTCORE_MEMORY_NAMESPACE", "jira-triage-agent")
+AGENTCORE_MEMORY_SHORT_TERM_ID = os.getenv("AGENTCORE_MEMORY_SHORT_TERM_ID", "")
+AGENTCORE_MEMORY_LONG_TERM_ID = os.getenv("AGENTCORE_MEMORY_LONG_TERM_ID", "")

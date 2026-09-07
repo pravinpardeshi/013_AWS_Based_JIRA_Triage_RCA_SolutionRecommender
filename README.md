@@ -68,7 +68,123 @@ All 9 tables are auto-created on application startup:
 | LLM         | Amazon Bedrock — Claude Sonnet (chat/RCA)                         |
 | Embeddings  | Amazon Bedrock — Cohere embed-english-v3 (1024-dim)               |
 | Agentic AI  | LangGraph StateGraph workflows                                    |
+| AgentCore   | AWS Bedrock AgentRuntime (managed agent deployment)               |
 | HTTP Client | httpx (async), boto3 (AWS SDK)                                    |
+
+## AWS Bedrock AgentCore Deployment
+
+This application is ready for deployment on AWS Bedrock AgentCore. AgentCore provides managed infrastructure for running AI agents at scale with built-in memory, identity, and observability.
+
+### AgentCore Components Used
+
+| Component | Purpose | Configuration |
+|-----------|---------|---------------|
+| **Runtime** | Managed execution environment for the agent | `AGENTCORE_ENABLED=true` |
+| **Memory** | Persistent conversation history across sessions | `AGENTCORE_MEMORY_ENABLED=true` |
+| **Gateway** | Expose triage/RCA/solution as MCP tools for other agents | Via `agentcore_tools.py` |
+| **Identity** | OAuth-based authentication (optional) | Via AWS IAM/Cognito |
+
+### Project Structure (AgentCore)
+
+```
+backend/
+├── agentcore_app.py        # AgentCore Runtime entrypoint
+├── agentcore_tools.py      # MCP tool definitions for AgentCore Gateway
+├── agentcore_memory.py     # AgentCore Memory integration
+├── main.py                 # FastAPI app (local development)
+├── langgraph_agent.py      # LangGraph agent workflows
+└── ...
+```
+
+### Local Development (No AgentCore)
+
+Run the FastAPI server directly:
+
+```bash
+cd backend
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+All AgentCore features are disabled by default. The app uses DynamoDB for sessions and messages.
+
+### Deploy to AgentCore Runtime
+
+**Step 1: Install AgentCore CLI**
+
+```bash
+npm i -g @aws/agentcore
+```
+
+**Step 2: Initialize AgentCore Project**
+
+```bash
+cd 019_AWS_JIRA_Ticket_Solution
+agentcore create --name jira-triage-agent --defaults
+```
+
+**Step 3: Configure Environment**
+
+Update `backend/.env`:
+
+```env
+AGENTCORE_ENABLED=true
+AGENTCORE_MEMORY_ENABLED=true
+AGENTCORE_MEMORY_NAMESPACE=jira-triage-agent
+AGENTCORE_MEMORY_SHORT_TERM_ID=<your-short-term-memory-id>
+AGENTCORE_MEMORY_LONG_TERM_ID=<your-long-term-memory-id>
+```
+
+**Step 4: Deploy**
+
+```bash
+agentcore deploy
+```
+
+AgentCore handles packaging, infrastructure provisioning, and deployment automatically.
+
+### AgentCore Gateway Tools
+
+The following MCP tools are available for other agents to invoke:
+
+| Tool | Description |
+|------|-------------|
+| `jira_triage` | Full triage analysis (priority, RCA, solution) |
+| `jira_rca` | Root cause analysis only |
+| `jira_solution` | Solution recommendations only |
+| `jira_knowledge_search` | Search historical tickets |
+| `jira_feedback_stats` | Get feedback analytics |
+
+These tools are defined in `backend/agentcore_tools.py` and can be registered with AgentCore Gateway.
+
+### AgentCore Memory
+
+When `AGENTCORE_MEMORY_ENABLED=true`:
+
+- **Short-term memory**: Stores chat session messages in AgentCore Memory
+- **Long-term memory**: Stores feedback and knowledge for cross-session learning
+- **Fallback**: Automatically falls back to DynamoDB if AgentCore Memory is unavailable
+
+### AG-UI Protocol Support
+
+The agent supports the AG-UI protocol for streaming responses:
+
+```python
+from bedrock_agentcore.runtime import serve_ag_ui
+
+# Deploy with AG-UI support
+serve_ag_ui(agentcore_app.app)
+```
+
+### A2A Protocol Support
+
+Other agents can invoke this agent via the A2A protocol:
+
+```python
+from bedrock_agentcore.runtime import serve_a2a
+
+# Deploy with A2A support
+serve_a2a(agentcore_app.app)
+```
 
 ## Project Structure
 
@@ -82,12 +198,14 @@ All 9 tables are auto-created on application startup:
 │   ├── dynamodb.py              # DynamoDB client (sessions, messages, triage)
 │   ├── dynamodb_cache.py        # DynamoDB-backed cache with TTL + L1 hot-key cache
 │   ├── dynamodb_guardrails.py   # DynamoDB-backed rate limiter + circuit breaker
-│   ├── langgraph_agent.py       # LangGraph agent workflows (chat + triage)
+│   ├── langgraph_agent.py       # LangGraph agent workflows (chat, triage, RCA, solution)
 │   ├── retriever.py             # Vector similarity search and ticket formatting
 │   ├── guardrails.py            # Input/output validation, jailbreak detection
 │   ├── feedback_analytics.py    # Feedback recording, analytics, prompt improvement engine
 │   ├── metrics.py               # Prometheus-compatible metrics collector
-│   ├── ingest.py                # Single-file ingestion script
+│   ├── agentcore_app.py         # AgentCore Runtime entrypoint (managed deployment)
+│   ├── agentcore_tools.py       # MCP tool definitions for AgentCore Gateway
+│   ├── agentcore_memory.py      # AgentCore Memory integration
 │   ├── requirements.txt         # Python dependencies
 │   └── .env.example             # Environment variable template (copy to .env)
 ├── frontend/
@@ -647,9 +765,11 @@ For 200 tickets, pgvector is sufficient and avoids an additional AWS service. Th
 | `retriever.py` | ~65 | pgvector similarity search, ticket formatting |
 | `database.py` | ~85 | RDS PostgreSQL init, re-exports DynamoDB functions |
 | `metrics.py` | ~370 | Prometheus-compatible metrics collector |
-| `config.py` | ~30 | Environment variable loader |
+| `config.py` | ~40 | Environment variable loader (including AgentCore config) |
+| `agentcore_app.py` | ~150 | AgentCore Runtime entrypoint for managed deployment |
+| `agentcore_tools.py` | ~120 | MCP tool definitions for AgentCore Gateway |
+| `agentcore_memory.py` | ~200 | AgentCore Memory integration with DynamoDB fallback |
 | `ingest_pipeline.py` | ~280 | Batch CSV ingestion with CLI |
-| `ingest.py` | ~80 | Legacy single-file ingestion |
 
 ### DynamoDB Table Schemas
 
@@ -727,6 +847,19 @@ http://localhost:8000/metrics
 | **App** | `active_sessions` | gauge | — |
 | | `total_tickets` | gauge | — |
 | | `uptime_seconds` | gauge | — |
+| **AgentCore Runtime** | `agentcore_runtime_invocations_total` | counter | agent_type |
+| | `agentcore_runtime_errors_total` | counter | agent_type, error_type |
+| | `agentcore_runtime_duration_seconds` | histogram | agent_type |
+| | `agentcore_runtime_sessions_active` | gauge | — |
+| **AgentCore Memory** | `agentcore_memory_reads_total` | counter | memory_type |
+| | `agentcore_memory_writes_total` | counter | memory_type |
+| | `agentcore_memory_errors_total` | counter | memory_type, error_type |
+| | `agentcore_memory_latency_seconds` | histogram | operation |
+| **AgentCore Gateway** | `agentcore_gateway_requests_total` | counter | tool_name |
+| | `agentcore_gateway_errors_total` | counter | tool_name, error_type |
+| | `agentcore_gateway_duration_seconds` | histogram | tool_name |
+| **AgentCore Identity** | `agentcore_identity_auth_success_total` | counter | — |
+| | `agentcore_identity_auth_failure_total` | counter | — |
 
 ## AWS Cost Considerations
 

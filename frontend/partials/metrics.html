@@ -387,6 +387,91 @@
             </div>
         </div>
 
+        <!-- AgentCore Metrics -->
+        <div class="metrics-section" ng-if="data.agentcore">
+            <h3>AWS Bedrock AgentCore</h3>
+            <div class="metrics-two-col">
+                <!-- Runtime -->
+                <div>
+                    <h4>Runtime</h4>
+                    <div class="metrics-mini-cards">
+                        <div class="mini-card">
+                            <span class="mini-value">{{data.agentcore.runtime.total_invocations || 0}}</span>
+                            <span class="mini-label">Total Invocations</span>
+                        </div>
+                        <div class="mini-card">
+                            <span class="mini-value" ng-class="{'text-error': data.agentcore.runtime.error_count > 0}">{{data.agentcore.runtime.error_count || 0}}</span>
+                            <span class="mini-label">Errors</span>
+                        </div>
+                        <div class="mini-card">
+                            <span class="mini-value">{{data.agentcore.runtime.avg_duration_ms || 0}}ms</span>
+                            <span class="mini-label">Avg Duration</span>
+                        </div>
+                        <div class="mini-card">
+                            <span class="mini-value">{{data.agentcore.runtime.active_sessions || 0}}</span>
+                            <span class="mini-label">Active Sessions</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Memory -->
+                <div>
+                    <h4>Memory</h4>
+                    <div class="metrics-mini-cards">
+                        <div class="mini-card">
+                            <span class="mini-value">{{data.agentcore.memory.total_reads || 0}}</span>
+                            <span class="mini-label">Reads</span>
+                        </div>
+                        <div class="mini-card">
+                            <span class="mini-value">{{data.agentcore.memory.total_writes || 0}}</span>
+                            <span class="mini-label">Writes</span>
+                        </div>
+                        <div class="mini-card">
+                            <span class="mini-value" ng-class="{'text-error': data.agentcore.memory.error_count > 0}">{{data.agentcore.memory.error_count || 0}}</span>
+                            <span class="mini-label">Errors</span>
+                        </div>
+                        <div class="mini-card">
+                            <span class="mini-value">{{data.agentcore.memory.avg_latency_ms || 0}}ms</span>
+                            <span class="mini-label">Avg Latency</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="metrics-two-col" style="margin-top: 16px;">
+                <!-- Gateway -->
+                <div>
+                    <h4>Gateway (MCP Tools)</h4>
+                    <div class="metrics-mini-cards">
+                        <div class="mini-card">
+                            <span class="mini-value">{{data.agentcore.gateway.total_requests || 0}}</span>
+                            <span class="mini-label">Tool Requests</span>
+                        </div>
+                        <div class="mini-card">
+                            <span class="mini-value" ng-class="{'text-error': data.agentcore.gateway.error_count > 0}">{{data.agentcore.gateway.error_count || 0}}</span>
+                            <span class="mini-label">Errors</span>
+                        </div>
+                        <div class="mini-card">
+                            <span class="mini-value">{{data.agentcore.gateway.avg_duration_ms || 0}}ms</span>
+                            <span class="mini-label">Avg Duration</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Identity -->
+                <div>
+                    <h4>Identity (Auth)</h4>
+                    <div class="metrics-mini-cards">
+                        <div class="mini-card">
+                            <span class="mini-value text-ok">{{data.agentcore.identity.auth_success || 0}}</span>
+                            <span class="mini-label">Auth Success</span>
+                        </div>
+                        <div class="mini-card">
+                            <span class="mini-value" ng-class="{'text-error': data.agentcore.identity.auth_failure > 0}">{{data.agentcore.identity.auth_failure || 0}}</span>
+                            <span class="mini-label">Auth Failures</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <div class="health-meta" ng-if="data && !loading">

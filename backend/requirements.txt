@@ -17,3 +17,6 @@ langchain==0.3.27
 langchain-aws==0.2.28
 langchain-community==0.3.27
 langchain-core==0.3.68
+
+# AWS Bedrock AgentCore (for managed agent deployment)
+bedrock-agentcore>=1.19.0

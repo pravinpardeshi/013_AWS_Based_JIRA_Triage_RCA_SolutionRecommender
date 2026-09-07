@@ -296,6 +296,53 @@ class MetricsCollector:
             buckets=(1, 2, 3, 4, 5)
         )
 
+        # --- AgentCore Runtime metrics ---
+        self.agentcore_invocations = Counter(
+            "agentcore_invocations_total", "Total AgentCore Runtime invocations"
+        )
+        self.agentcore_invocation_duration = Histogram(
+            "agentcore_invocation_duration_seconds", "AgentCore Runtime invocation latency"
+        )
+        self.agentcore_invocation_errors = Counter(
+            "agentcore_invocation_errors_total", "AgentCore Runtime invocation errors"
+        )
+        self.agentcore_active_sessions = Gauge(
+            "agentcore_active_sessions", "Active AgentCore sessions"
+        )
+
+        # --- AgentCore Memory metrics ---
+        self.agentcore_memory_reads = Counter(
+            "agentcore_memory_reads_total", "Total AgentCore Memory read operations"
+        )
+        self.agentcore_memory_writes = Counter(
+            "agentcore_memory_writes_total", "Total AgentCore Memory write operations"
+        )
+        self.agentcore_memory_errors = Counter(
+            "agentcore_memory_errors_total", "Total AgentCore Memory errors"
+        )
+        self.agentcore_memory_latency = Histogram(
+            "agentcore_memory_latency_seconds", "AgentCore Memory operation latency"
+        )
+
+        # --- AgentCore Gateway metrics ---
+        self.agentcore_gateway_requests = Counter(
+            "agentcore_gateway_requests_total", "Total AgentCore Gateway tool requests"
+        )
+        self.agentcore_gateway_duration = Histogram(
+            "agentcore_gateway_duration_seconds", "AgentCore Gateway tool invocation latency"
+        )
+        self.agentcore_gateway_errors = Counter(
+            "agentcore_gateway_errors_total", "Total AgentCore Gateway errors"
+        )
+
+        # --- AgentCore Identity metrics ---
+        self.agentcore_auth_success = Counter(
+            "agentcore_auth_success_total", "Successful AgentCore authentication"
+        )
+        self.agentcore_auth_failure = Counter(
+            "agentcore_auth_failure_total", "Failed AgentCore authentication"
+        )
+
         # --- Cache hit/miss counters for rate calculation ---
         self._cache_hit_count = 0
         self._cache_miss_count = 0
@@ -356,6 +403,29 @@ class MetricsCollector:
             },
             "circuit_breaker": {
                 "state": self.circuit_breaker_state.get(),
+            },
+            "agentcore": {
+                "runtime": {
+                    "total_invocations": sum(self.agentcore_invocations._values.values()),
+                    "error_count": sum(self.agentcore_invocation_errors._values.values()),
+                    "avg_duration_ms": round(self.agentcore_invocation_duration.avg() * 1000, 2) if self.agentcore_invocation_duration.avg() > 0 else 0,
+                    "active_sessions": self.agentcore_active_sessions.get(),
+                },
+                "memory": {
+                    "total_reads": sum(self.agentcore_memory_reads._values.values()),
+                    "total_writes": sum(self.agentcore_memory_writes._values.values()),
+                    "error_count": sum(self.agentcore_memory_errors._values.values()),
+                    "avg_latency_ms": round(self.agentcore_memory_latency.avg() * 1000, 2) if self.agentcore_memory_latency.avg() > 0 else 0,
+                },
+                "gateway": {
+                    "total_requests": sum(self.agentcore_gateway_requests._values.values()),
+                    "error_count": sum(self.agentcore_gateway_errors._values.values()),
+                    "avg_duration_ms": round(self.agentcore_gateway_duration.avg() * 1000, 2) if self.agentcore_gateway_duration.avg() > 0 else 0,
+                },
+                "identity": {
+                    "auth_success": sum(self.agentcore_auth_success._values.values()),
+                    "auth_failure": sum(self.agentcore_auth_failure._values.values()),
+                },
             },
             "uptime_seconds": time.time() - self._start_time,
         }
