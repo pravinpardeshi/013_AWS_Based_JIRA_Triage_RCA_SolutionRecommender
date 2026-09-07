@@ -2,7 +2,7 @@
   <div class="tickets-header">
     <h2>Triage Tickets</h2>
     <div class="tickets-controls">
-      <input type="text" ng-model="searchQuery" placeholder="Search tickets..." class="search-input">
+      <input type="text" ng-model="searchQuery" ng-change="filterTickets()" placeholder="Search tickets..." class="search-input">
       <select ng-model="statusFilter" ng-change="filterTickets()" class="status-filter">
         <option value="all">All Status</option>
         <option value="open">Open</option>
@@ -25,8 +25,7 @@
       <thead>
         <tr>
           <th>ID</th>
-          <th>Component</th>
-          <th>Technology</th>
+          <th>Description</th>
           <th>Status</th>
           <th>Rating</th>
           <th>Created</th>
@@ -35,9 +34,8 @@
       </thead>
       <tbody>
         <tr ng-repeat="ticket in tickets" ng-click="selectTicket(ticket)" class="clickable-row">
-          <td class="ticket-id">{{ticket.ticket_id}}</td>
-          <td>{{ticket.component || 'N/A'}}</td>
-          <td>{{ticket.technology || 'N/A'}}</td>
+          <td class="ticket-id">{{ticket.id}}</td>
+          <td class="ticket-desc" title="{{ticket.description}}">{{ticket.description | limitTo:100}}{{ticket.description.length > 100 ? '...' : ''}}</td>
           <td>
             <span class="status-badge status-{{ticket.status}}">{{ticket.status}}</span>
           </td>

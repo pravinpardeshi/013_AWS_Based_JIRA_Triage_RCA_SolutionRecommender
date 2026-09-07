@@ -14,6 +14,8 @@ A Retrieval-Augmented Generation (RAG) powered assistant that helps engineers un
 - **DynamoDB-Backed Guardrails** — Rate limiting and circuit breaker state stored in DynamoDB, shared across all instances
 - **Data Ingestion Pipeline** — Batch CSV ingestion with validation, deduplication, and Bedrock embedding generation
 - **Feedback Loop** — Star ratings on triage tickets drive AI-powered prompt improvement, stored in DynamoDB
+- **JIRA Upstream Integration** — Push AI-recommended solutions directly to upstream JIRA via REST API (add comment, transition status)
+- **Human-in-the-Loop** — Review triage results before pushing to JIRA; save locally first, then push when ready
 - **Health Dashboard** — Monitor RDS, DynamoDB, and Bedrock connectivity, ticket counts, and circuit breaker state
 - **Observability Metrics** — Prometheus-compatible metrics endpoint with a built-in dashboard for HTTP, LLM, DB, cache, and guardrail monitoring
 
@@ -186,6 +188,26 @@ from bedrock_agentcore.runtime import serve_a2a
 serve_a2a(agentcore_app.app)
 ```
 
+## UI Layout
+
+The application uses an AngularJS SPA with a sidebar navigation. **Triage & RCA** is the landing page (default route).
+
+### Sidebar Navigation
+1. **Triage & RCA** — Landing page. Submit a problem description, get AI-powered triage, root cause analysis, and solution recommendations
+2. **AI Chat** — Conversational knowledge base chat with session management
+3. **Tickets** — Browse, search, filter, and manage saved triage tickets
+4. **Feedback** — View feedback analytics and AI-generated prompt improvements
+5. **Health** — System health dashboard (RDS, DynamoDB, Bedrock connectivity)
+6. **Metrics** — Observability dashboard (HTTP, LLM, DB, cache, guardrails, AgentCore)
+
+### Triage → JIRA Push Flow
+1. User submits a problem description on the Triage page
+2. AI streams triage analysis (root cause, solution, priority, similar tickets)
+3. User clicks **"Save as Ticket"** — saves to DynamoDB
+4. **"Push to Upstream JIRA"** section appears after saving
+5. User enters a JIRA issue key (e.g. `PROJ-1234`) and optionally selects a status transition
+6. Clicking **"Push to JIRA"** adds the AI recommendation as a JIRA comment via REST API
+
 ## Project Structure
 
 ```
@@ -339,6 +361,13 @@ BEDROCK_EMBEDDING_DIMENSION=1024
 # =============================================================================
 APP_HOST=0.0.0.0
 APP_PORT=8000
+
+# =============================================================================
+# JIRA Upstream Integration (for pushing AI-recommended solutions)
+# =============================================================================
+JIRA_BASE_URL=https://yourorg.atlassian.net
+JIRA_API_TOKEN=your_jira_api_token_here
+JIRA_USER_EMAIL=your_email@company.com
 ```
 
 ### 5. Ingest Ticket Data
@@ -442,6 +471,8 @@ Rate limiting and circuit breaker state are stored in DynamoDB for shared state 
 | POST   | `/api/feedback/analyze`       | Run AI analysis for prompt improvements        |
 | GET    | `/api/feedback/adjustments`   | List active/all prompt adjustments             |
 | POST   | `/api/feedback/adjustments/{id}/deactivate` | Deactivate a prompt adjustment |
+| POST   | `/api/ticket/{id}/jira-update` | Push triage recommendation to upstream JIRA |
+| GET    | `/api/jira/issue/{key}`        | Fetch issue details from upstream JIRA       |
 
 ## LangGraph Agent Workflows
 
