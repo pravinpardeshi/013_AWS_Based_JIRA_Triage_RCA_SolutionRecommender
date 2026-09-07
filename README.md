@@ -22,10 +22,10 @@ A Retrieval-Augmented Generation (RAG) powered assistant that helps engineers un
 ## Architecture
 
 ```
-   ┌──────────────┐      ┌───────────────────┐      ┌─────────────────────┐
+   ┌──────────────┐      ┌───────────────────┐        ┌─────────────────────┐
    │   Frontend   │────▶│  FastAPI Backend   │────▶ │  AWS RDS PostgreSQL │
    │  (AngularJS) │◀────│   (Uvicorn)        │◀──── │  + pgvector         │
-   └──────────────┘      └────────┬──────────┘      └─────────────────────┘
+   └──────────────┘      └────────┬──────────┘        └─────────────────────┘
                                   │
                   ┌───────────────┼───────────┐
                   │               │           │
@@ -438,10 +438,41 @@ Rate limiting and circuit breaker state are stored in DynamoDB for shared state 
 
 ### Circuit Breaker
 
-- Stores failure count and state in `jira_triage_circuit_breaker`
-- Threshold: 3 failures → open, 30s recovery → half-open
-- State shared across all instances (one instance trips, all respect it)
-- DynamoDB atomic writes for thread-safety
+The circuit breaker is a resilience pattern that prevents cascading failures when an external service (Bedrock, RDS, Ollama) is down or slow. Instead of letting every request hang waiting for timeouts, the circuit breaker **fails fast** and stops calling the failing service until it recovers.
+
+#### How It Works (3 States)
+
+```
+           ┌──────────┐  failures >= 3   ┌──────────┐  30s cooldown   ┌───────────┐
+  ───────▶│  CLOSED   │──────────────▶│   OPEN    │──────────────▶│ HALF-OPEN │
+  (normal) │           │               │           │               │            │
+           │  requests │               │  reject   │               │  test one  │
+           │  pass     │               │  all      │               │  request   │
+           └──────────┘               └──────────┘               └───────────┘
+                ▲                                                   │
+                │           success                                 │
+                └───────────────────────────────────────────────────┘
+```
+
+| State | Behavior |
+|-------|----------|
+| **CLOSED** | Normal operation. Requests pass through. Failures are counted. |
+| **OPEN** | After 3 consecutive failures, the breaker trips. All requests are **immediately rejected** without calling the failing service. Users get an instant error instead of a 30s timeout. |
+| **HALF-OPEN** | After 30s cooldown, one test request is allowed through. If it succeeds → back to CLOSED. If it fails → back to OPEN. |
+
+#### Why It's Needed
+
+- **Prevents cascading failure** — If Bedrock goes down, your app won't exhaust threads/connections waiting for timeouts on every request
+- **Fails fast** — Users get an immediate "service unavailable" error instead of hanging for 30+ seconds
+- **Protects resources** — Threads, memory, and DB connections aren't wasted on calls that will fail
+- **Auto-recovery** — Once the service comes back, the breaker closes automatically and traffic resumes
+
+#### DynamoDB-Backed (Shared State)
+
+- State stored in `jira_triage_circuit_breaker` table
+- All instances share the same circuit breaker state — one instance trips it, all respect it
+- DynamoDB atomic writes (`UPDATE ... SET failure_count = failure_count + 1`) ensure thread-safety without locks
+- Each external service (Bedrock, RDS, Ollama) has its own independent circuit breaker
 
 ## API Endpoints
 
@@ -1186,11 +1217,11 @@ Feedback (1-2 stars) → AI Analysis → Prompt Improvement → Better Triage �
     │                         │                          │
     │  1. Rate ticket         │                          │
     │  (1-5 stars + comment)  │                          │
-    │───────────────────────▶ │                          │
+    │──────────────────────▶ │                          │
     │                         │                          │
     │                    save_triage_feedback()          │
     │                    record_feedback()               │
-    │                         │ ────────────────────────▶│
+    │                         │ ───────────────────────▶│
     │                         │                          │
     │                         │                          │  jira_triage_feedback
     │                         │                          │  (rating, comment,
@@ -1201,12 +1232,12 @@ Feedback (1-2 stars) → AI Analysis → Prompt Improvement → Better Triage �
     │  2. Trigger analysis    │                          │
     │  POST /api/feedback/    │                          │
     │       analyze           │                          │
-    │───────────────────────▶ │                          │
+    │──────────────────────▶ │                          │
     │                         │                          │
     │                    get_feedback_stats()            │
     │                    get_low_rated_tickets()         │
-    │                         │ ────────────────────────▶│
-    │                         │ ◀────────────────────────│
+    │                         │ ───────────────────────▶│
+    │                         │ ◀───────────────────────│
     │                         │                          │
     │                    Send to Bedrock Claude:         │
     │                    "Analyze these low-rated        │
@@ -1214,13 +1245,13 @@ Feedback (1-2 stars) → AI Analysis → Prompt Improvement → Better Triage �
     │                     improvements"                  │
     │                         │                          │
     │                         │    ┌──────────────┐      │
-    │                         │──▶ │ Bedrock      │      │
+    │                         │──▶│ Bedrock      │      │
     │                         │    │ Claude       │      │
-    │                         │◀── │ (analysis)   │      │
+    │                         │◀──│ (analysis)   │      │
     │                         │    └──────────────┘      │
     │                         │                          │
     │                    save_prompt_adjustment()        │
-    │                         │ ────────────────────────▶│
+    │                         │ ───────────────────────▶│
     │                         │                          │
     │                         │                          │  jira_triage_prompt_
     │                         │                          │  improvements
@@ -1232,29 +1263,29 @@ Feedback (1-2 stars) → AI Analysis → Prompt Improvement → Better Triage �
     │  3. Triage new ticket   │                          │
     │  POST /api/triage/      │                          │
     │       stream            │                          │
-    │───────────────────────▶ │                          │
+    │───────────────────────▶│                          │
     │                         │                          │
     │                    build_feedback_aware_           │
     │                    triage_prompt()                 │
-    │                         │ ────────────────────────▶│
-    │                         │ ◀────────────────────────│
+    │                         │────────────────────────▶│
+    │                         │◀────────────────────────│
     │                         │                          │
     │                         │   Base prompt            │
     │                         │   + active adjustments   │
     │                         │                          │
     │                    run_triage_agent_stream()       │
     │                         │    ┌──────────────┐      │
-    │                         │──▶ │ Bedrock      │      │
+    │                         │──▶│ Bedrock      │      │
     │                         │    │ Claude       │      │
-    │                         │◀── │ (enhanced)   │      │
+    │                         │◀──│ (enhanced)   │      │
     │                         │    └──────────────┘      │
     │                         │                          │
     │  4. Better analysis!    │                          │
-    │◀─────────────────────── │                          │
+    │◀────────────────────── │                          │
     │                         │                          │
     │  5. Rate higher (4-5)   │                          │
-    │───────────────────────▶ │                          │
-    │                         │ ────────────────────────▶│
+    │──────────────────────▶ │                          │
+    │                         │ ───────────────────────▶│
 ```
 
 ### Feedback API Endpoints
@@ -1349,4 +1380,25 @@ Automatic analysis after every feedback would be expensive (Bedrock API calls) a
 
 ## License
 
-MIT
+MIT License
+
+Copyright (c) 2026 Pravin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
