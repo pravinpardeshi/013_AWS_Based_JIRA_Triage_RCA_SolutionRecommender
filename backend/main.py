@@ -1073,6 +1073,62 @@ async def api_get_jira_issue(issue_key: str):
         }
 
 
+# ---------------------------------------------------------------------------
+# JIRA Incremental Ingestion API
+# ---------------------------------------------------------------------------
+
+class JiraIngestRequest(BaseModel):
+    days: int = 1
+    date: Optional[str] = None
+    project: Optional[str] = None
+
+
+@app.post("/api/jira/ingest")
+async def ingest_jira_tickets(req: JiraIngestRequest):
+    """
+    Trigger incremental JIRA ingestion. Fetches tickets from JIRA REST API
+    for the specified date range and upserts them into the vector DB.
+    """
+    from datetime import datetime, timedelta, timezone
+    from jira_daily_ingest import (
+        build_jql, fetch_jira_issues, jira_response_to_row,
+        ingest_tickets, get_date_range,
+    )
+    import httpx as _httpx
+
+    if not JIRA_BASE_URL or not JIRA_API_TOKEN or not JIRA_USER_EMAIL:
+        raise HTTPException(status_code=500, detail="JIRA credentials not configured")
+
+    start_date, end_date = get_date_range(req.days, req.date)
+    jql = build_jql(start_date, end_date, req.project)
+
+    try:
+        async with _httpx.AsyncClient() as client:
+            issues = await fetch_jira_issues(client, jql)
+            rows = [jira_response_to_row(issue) for issue in issues]
+            stats = await ingest_tickets(rows)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ingestion failed: {str(e)}")
+
+    return {
+        "status": "success",
+        "date_range": f"{start_date} to {end_date}",
+        "jql": jql,
+        "stats": stats,
+    }
+
+
+@app.get("/api/jira/ingest/stats")
+async def jira_ingest_stats():
+    """Show current vector DB ticket statistics."""
+    from jira_daily_ingest import get_stats
+    try:
+        stats = get_stats()
+        return stats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Serve AngularJS frontend
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
 if os.path.exists(frontend_path):

@@ -22,10 +22,17 @@ A Retrieval-Augmented Generation (RAG) powered assistant that helps engineers un
 ## Architecture
 
 ```
+<<<<<<< HEAD
    ┌──────────────┐      ┌───────────────────┐        ┌─────────────────────┐
    │   Frontend   │────▶│  FastAPI Backend   │────▶ │  AWS RDS PostgreSQL │
    │  (AngularJS) │◀────│   (Uvicorn)        │◀──── │  + pgvector         │
    └──────────────┘      └────────┬──────────┘        └─────────────────────┘
+=======
+   ┌──────────────┐      ┌───────────────────┐      ┌─────────────────────┐
+   │   Frontend   │────▶ │  FastAPI Backend  │────▶ │  AWS RDS PostgreSQL │
+   │  (AngularJS) │◀──── │   (Uvicorn)       │◀──── │  + pgvector         │
+   └──────────────┘      └────────┬──────────┘      └─────────────────────┘
+>>>>>>> a7d33327fb30ae4df5bc14ce1966c6d1ee7578ee
                                   │
                   ┌───────────────┼───────────┐
                   │               │           │
@@ -238,6 +245,7 @@ The application uses an AngularJS SPA with a sidebar navigation. **Triage & RCA*
 ├── dataset/
 │   └── jira_j2ee_tickets_rag_dataset_200Count.csv
 ├── ingest_pipeline.py           # Batch CSV ingestion pipeline with CLI
+├── jira_daily_ingest.py         # JIRA incremental daily ingestion (REST API + Bedrock)
 ├── run.sh                       # Startup/management script
 ├── pyproject.toml               # Project metadata
 ├── .python-version              # Python 3.12
@@ -504,6 +512,8 @@ The circuit breaker is a resilience pattern that prevents cascading failures whe
 | POST   | `/api/feedback/adjustments/{id}/deactivate` | Deactivate a prompt adjustment |
 | POST   | `/api/ticket/{id}/jira-update` | Push triage recommendation to upstream JIRA |
 | GET    | `/api/jira/issue/{key}`        | Fetch issue details from upstream JIRA       |
+| POST   | `/api/jira/ingest`            | Trigger incremental JIRA ingestion (body: `{days, date, project}`) |
+| GET    | `/api/jira/ingest/stats`      | Show vector DB ticket statistics              |
 
 ## LangGraph Agent Workflows
 
@@ -602,6 +612,39 @@ python ingest_pipeline.py --validate       # Validate CSV files
 python ingest_pipeline.py --stats          # Show DB statistics
 ```
 
+## JIRA Daily Incremental Pipeline
+
+Fetches yesterday's tickets from JIRA REST API and upserts them into the vector DB with Bedrock embeddings.
+
+**Requirements**: Set `JIRA_BASE_URL`, `JIRA_API_TOKEN`, and `JIRA_USER_EMAIL` in `backend/.env`.
+
+```bash
+python jira_daily_ingest.py                    # Ingest yesterday's tickets
+python jira_daily_ingest.py --days 3           # Ingest last 3 days
+python jira_daily_ingest.py --date 2026-09-07  # Ingest a specific date
+python jira_daily_ingest.py --project INFRA    # Filter by JIRA project
+python jira_daily_ingest.py --dry-run          # Preview without ingesting
+python jira_daily_ingest.py --stats            # Show DB stats
+python jira_daily_ingest.py --cron             # Run as daemon (daily loop)
+```
+
+**Cron setup** (run at 6 AM daily):
+```
+0 6 * * * cd /path/to/019_AWS_JIRA_Ticket_Solution && python jira_daily_ingest.py >> logs/ingest.log 2>&1
+```
+
+**How it works**:
+1. Builds JQL: `created >= "YYYY-MM-DD" AND created <= "YYYY-MM-DD"`
+2. Fetches issues via JIRA REST API v2 (paginated, handles 100/page limit)
+3. Maps JIRA fields to DB schema (standard fields + custom fields `customfield_10001-10013`)
+4. Generates Bedrock Cohere embeddings for each ticket
+5. Upserts into `jira_tickets` table (skips existing ticket IDs)
+6. Supports `--cron` mode: runs once, sleeps until 6 AM, repeats
+
+**API endpoints**:
+- `POST /api/jira/ingest` — Trigger ingestion from UI (body: `{days, date, project}`)
+- `GET /api/jira/ingest/stats` — Show vector DB ticket statistics
+
 ## Code Walkthrough
 
 ### Module Dependency Graph
@@ -626,6 +669,11 @@ main.py
   └── guardrails.py ────────► dynamodb_guardrails.py
         └── metrics.py              └── config.py
                                      └── metrics.py
+
+jira_daily_ingest.py (standalone CLI / cron daemon)
+  ├── config.py (JIRA_BASE_URL, JIRA_API_TOKEN, JIRA_USER_EMAIL)
+  ├── database.py ──► psycopg2 + pgvector → RDS PostgreSQL
+  └── bedrock_client.py ──► Bedrock Cohere embeddings
 ```
 
 ### Entry Point: `main.py`
@@ -789,6 +837,31 @@ python ingest_pipeline.py
   └─ Summary: 200 ingested, 0 skipped, 0 errors
 ```
 
+### JIRA Daily Incremental Ingestion: `jira_daily_ingest.py`
+
+```
+python jira_daily_ingest.py
+  │
+  ├─ get_date_range()                — yesterday's date (or --days N / --date YYYY-MM-DD)
+  │
+  ├─ build_jql()                     — 'created >= "2026-09-07" AND created <= "2026-09-07"'
+  │
+  ├─ fetch_jira_issues()             — JIRA REST API v2 GET /rest/api/2/search
+  │    └─ Paginated (100/page), auto-follows startAt until all fetched
+  │
+  ├─ jira_response_to_row()          — Map JIRA fields to DB columns
+  │    ├─ Standard: summary, description, status, priority, components, labels
+  │    └─ Custom fields: customfield_10001-10013 (technology, root_cause, etc.)
+  │
+  ├─ ingest_tickets()                — For each row:
+  │    ├─ Check duplicate            — SELECT id WHERE ticket_id = X
+  │    ├─ build_ticket_text()        — concatenate fields into rich text
+  │    ├─ get_embedding()            — Bedrock Cohere API (with cache)
+  │    └─ INSERT INTO jira_tickets ... embedding = '[0.123,...]'::vector
+  │
+  └─ Summary: 15 ingested, 3 skipped (duplicates), 0 errors
+```
+
 ### Key Design Decisions
 
 **Why two-tier caching (L1 local + DynamoDB)?**
@@ -832,6 +905,7 @@ For 200 tickets, pgvector is sufficient and avoids an additional AWS service. Th
 | `agentcore_tools.py` | ~120 | MCP tool definitions for AgentCore Gateway |
 | `agentcore_memory.py` | ~200 | AgentCore Memory integration with DynamoDB fallback |
 | `ingest_pipeline.py` | ~280 | Batch CSV ingestion with CLI |
+| `jira_daily_ingest.py` | ~340 | JIRA incremental daily ingestion (REST API → vector DB) |
 
 ### DynamoDB Table Schemas
 
@@ -1382,7 +1456,11 @@ Automatic analysis after every feedback would be expensive (Bedrock API calls) a
 
 MIT License
 
+<<<<<<< HEAD
 Copyright (c) 2026 Pravin
+=======
+Copyright (c) 2026 Pravin Pardeshi
+>>>>>>> a7d33327fb30ae4df5bc14ce1966c6d1ee7578ee
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1401,4 +1479,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+<<<<<<< HEAD
 
+=======
+>>>>>>> a7d33327fb30ae4df5bc14ce1966c6d1ee7578ee

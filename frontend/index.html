@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JIRA Triage & Knowledge Agent</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.3/angular.min.js"></script>
@@ -17,9 +18,9 @@
     <!-- Sidebar -->
     <aside class="sidebar" ng-class="{'collapsed': sidebarCollapsed}">
         <div class="sidebar-header">
-            <div class="sidebar-brand" ng-hide="sidebarCollapsed">
+            <div class="sidebar-brand">
                 <i class="fas fa-headset"></i>
-                <span>JIRA Agent</span>
+                <span ng-hide="sidebarCollapsed">JIRA Agent</span>
             </div>
             <button class="sidebar-toggle" ng-click="toggleSidebar()">
                 <i class="fas" ng-class="sidebarCollapsed ? 'fa-angle-right' : 'fa-angle-left'"></i>
