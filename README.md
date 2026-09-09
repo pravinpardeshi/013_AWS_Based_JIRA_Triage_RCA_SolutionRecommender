@@ -26,12 +26,12 @@ A Retrieval-Augmented Generation (RAG) powered assistant that helps engineers un
    │   Frontend   │────▶ │  FastAPI Backend  │  ────▶ │  AWS RDS PostgreSQL │
    │  (AngularJS) │◀──── │   (Uvicorn)       │  ◀──── │  + pgvector         │
    └──────────────┘      └────────┬──────────┘        └─────────────────────┘
-=======
+
    ┌──────────────┐      ┌───────────────────┐      ┌─────────────────────┐
    │   Frontend   │────▶ │  FastAPI Backend  │────▶ │  AWS RDS PostgreSQL │
    │  (AngularJS) │◀──── │   (Uvicorn)       │◀──── │  + pgvector         │
    └──────────────┘      └────────┬──────────┘      └─────────────────────┘
-=======
+
    ┌──────────────┐      ┌───────────────────┐       ┌─────────────────────┐
    │   Frontend   │────▶ │  FastAPI Backend  │ ────▶ │  AWS RDS PostgreSQL │
    │  (AngularJS) │◀──── │   (Uvicorn)       │ ◀──── │  + pgvector         │
