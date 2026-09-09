@@ -22,8 +22,6 @@ A Retrieval-Augmented Generation (RAG) powered assistant that helps engineers un
 ## Architecture
 
 ```
-<<<<<<< HEAD
-<<<<<<< HEAD
    ┌──────────────┐      ┌───────────────────┐        ┌─────────────────────┐
    │   Frontend   │────▶ │  FastAPI Backend  │  ────▶ │  AWS RDS PostgreSQL │
    │  (AngularJS) │◀──── │   (Uvicorn)       │  ◀──── │  + pgvector         │
@@ -33,13 +31,11 @@ A Retrieval-Augmented Generation (RAG) powered assistant that helps engineers un
    │   Frontend   │────▶ │  FastAPI Backend  │────▶ │  AWS RDS PostgreSQL │
    │  (AngularJS) │◀──── │   (Uvicorn)       │◀──── │  + pgvector         │
    └──────────────┘      └────────┬──────────┘      └─────────────────────┘
->>>>>>> a7d33327fb30ae4df5bc14ce1966c6d1ee7578ee
 =======
    ┌──────────────┐      ┌───────────────────┐       ┌─────────────────────┐
    │   Frontend   │────▶ │  FastAPI Backend  │ ────▶ │  AWS RDS PostgreSQL │
    │  (AngularJS) │◀──── │   (Uvicorn)       │ ◀──── │  + pgvector         │
    └──────────────┘      └────────┬──────────┘       └─────────────────────┘
->>>>>>> 2802815238f1e9d3bb354a466d318a075e3a7f25
                                   │
                   ┌───────────────┼───────────┐
                   │               │           │
