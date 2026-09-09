@@ -23,6 +23,7 @@ A Retrieval-Augmented Generation (RAG) powered assistant that helps engineers un
 
 ```
 <<<<<<< HEAD
+<<<<<<< HEAD
    ┌──────────────┐      ┌───────────────────┐        ┌─────────────────────┐
    │   Frontend   │────▶│  FastAPI Backend   │────▶ │  AWS RDS PostgreSQL │
    │  (AngularJS) │◀────│   (Uvicorn)        │◀──── │  + pgvector         │
@@ -33,6 +34,12 @@ A Retrieval-Augmented Generation (RAG) powered assistant that helps engineers un
    │  (AngularJS) │◀──── │   (Uvicorn)       │◀──── │  + pgvector         │
    └──────────────┘      └────────┬──────────┘      └─────────────────────┘
 >>>>>>> a7d33327fb30ae4df5bc14ce1966c6d1ee7578ee
+=======
+   ┌──────────────┐      ┌───────────────────┐       ┌─────────────────────┐
+   │   Frontend   │────▶ │  FastAPI Backend  │ ────▶ │  AWS RDS PostgreSQL │
+   │  (AngularJS) │◀──── │   (Uvicorn)       │ ◀──── │  + pgvector         │
+   └──────────────┘      └────────┬──────────┘       └─────────────────────┘
+>>>>>>> 2802815238f1e9d3bb354a466d318a075e3a7f25
                                   │
                   ┌───────────────┼───────────┐
                   │               │           │
@@ -451,15 +458,15 @@ The circuit breaker is a resilience pattern that prevents cascading failures whe
 #### How It Works (3 States)
 
 ```
-           ┌──────────┐  failures >= 3   ┌──────────┐  30s cooldown   ┌───────────┐
-  ───────▶│  CLOSED   │──────────────▶│   OPEN    │──────────────▶│ HALF-OPEN │
-  (normal) │           │               │           │               │            │
-           │  requests │               │  reject   │               │  test one  │
-           │  pass     │               │  all      │               │  request   │
-           └──────────┘               └──────────┘               └───────────┘
-                ▲                                                   │
-                │           success                                 │
-                └───────────────────────────────────────────────────┘
+           ┌───────────┐ failures >= 3   ┌───────────┐  30s cooldown   ┌───────────┐
+  ───────▶ │  CLOSED   │──────────────▶  │   OPEN    │──────────────▶  │ HALF-OPEN │
+  (normal) │           │                 │           │                 │           │
+           │  requests │                 │  reject   │                 │ test one  │
+           │  pass     │                 │  all      │                 │ request   │
+           └───────────┘                 └───────────┘                 └───────────┘
+                ▲                                                         │
+                │           success                                       │
+                └─────────────────────────────────────────────────────────┘
 ```
 
 | State | Behavior |
@@ -530,6 +537,12 @@ The application uses LangGraph StateGraphs for structured agentic AI workflows:
               embedding
 ```
 
+- **Purpose**: General-purpose Q&A about past incidents
+- **Endpoint**: `POST /api/chat/stream`
+- **Input**: Natural language question about past issues
+- **Output**: Conversational answer referencing similar historical tickets
+- **Use case**: "What similar outages have we had before?" / "How did we fix the payment timeout issue?"
+
 ### Triage Agent
 
 ```
@@ -540,6 +553,20 @@ The application uses LangGraph StateGraphs for structured agentic AI workflows:
   Technology/             + Bedrock Cohere      with triage prompt
   Environment             embedding
 ```
+
+- **Purpose**: Combined triage + RCA + solution recommendation in one call
+- **Endpoint**: `POST /api/triage/stream`
+- **Input**: Problem description, component, technology, environment
+- **Output**:
+  - **Priority**: P1 (Critical) through P4 (Low)
+  - **Issue Type**: Bug, Incident, Task, etc.
+  - **Component**: Most appropriate team/component based on historical patterns
+  - **Root Cause Category**: Configuration, Code Defect, Infrastructure, Dependency, Resource, Security, Data
+  - **Probable Cause**: Specific root cause explanation
+  - **Solution**: Recommended fix based on what worked for similar past tickets
+  - **Business Impact**: Estimated impact assessment
+  - **Resolution Time**: Estimated time to resolve
+- **Use case**: When you want a full analysis in one step — triage, diagnose, and recommend
 
 ### RCA Agent (Root Cause Analysis)
 
@@ -552,7 +579,16 @@ The application uses LangGraph StateGraphs for structured agentic AI workflows:
   Environment             embedding
 ```
 
-Focuses exclusively on root cause analysis: category identification, probable cause, contributing factors, evidence from similar tickets, and verification steps.
+- **Purpose**: Root cause analysis only (no triage, no solution)
+- **Endpoint**: `POST /api/rca/stream`
+- **Input**: Problem description, component, technology, environment
+- **Output**:
+  - **Root Cause Category**: Configuration, Code Defect, Infrastructure, Dependency, Resource, Security, Data
+  - **Probable Cause**: Most likely specific root cause based on historical patterns
+  - **Contributing Factors**: Secondary factors that may have contributed
+  - **Evidence**: References to specific similar ticket IDs that support the analysis
+  - **Verification Steps**: Concrete steps to confirm the root cause
+- **Use case**: When you already know the priority but need deeper diagnosis before fixing
 
 ### Solution Agent (Solution Recommendations)
 
@@ -566,7 +602,17 @@ Focuses exclusively on root cause analysis: category identification, probable ca
   + Optional Root Cause
 ```
 
-Focuses exclusively on actionable solutions: immediate mitigation, permanent fix, implementation steps, verification, prevention, and related tickets. Accepts optional root cause context for more targeted recommendations.
+- **Purpose**: Solution recommendation only (optionally takes root cause as input for more targeted advice)
+- **Endpoint**: `POST /api/solution/stream`
+- **Input**: Problem description, component, technology, environment, optional root cause
+- **Output**:
+  - **Immediate Mitigation**: Quick steps to reduce impact right now
+  - **Permanent Fix**: Recommended long-term solution based on what worked for similar past tickets
+  - **Implementation Steps**: Step-by-step instructions for the fix
+  - **Verification**: How to verify the fix works
+  - **Prevention**: How to prevent this issue from recurring
+  - **Related Tickets**: References to specific past tickets where similar solutions were applied
+- **Use case**: When you already have the root cause and need actionable next steps
 
 All agents support:
 - **Streaming**: Token-by-token SSE responses via `run_chat_agent_stream()`, `run_triage_agent_stream()`, `run_rca_agent_stream()`, and `run_solution_agent_stream()`
@@ -1291,11 +1337,11 @@ Feedback (1-2 stars) → AI Analysis → Prompt Improvement → Better Triage �
     │                         │                          │
     │  1. Rate ticket         │                          │
     │  (1-5 stars + comment)  │                          │
-    │──────────────────────▶ │                          │
+    │──────────────────────▶  │                          │
     │                         │                          │
     │                    save_triage_feedback()          │
     │                    record_feedback()               │
-    │                         │ ───────────────────────▶│
+    │                         │ ────────────────────────▶│
     │                         │                          │
     │                         │                          │  jira_triage_feedback
     │                         │                          │  (rating, comment,
@@ -1306,12 +1352,12 @@ Feedback (1-2 stars) → AI Analysis → Prompt Improvement → Better Triage �
     │  2. Trigger analysis    │                          │
     │  POST /api/feedback/    │                          │
     │       analyze           │                          │
-    │──────────────────────▶ │                          │
+    │───────────────────────▶ │                          │
     │                         │                          │
     │                    get_feedback_stats()            │
     │                    get_low_rated_tickets()         │
-    │                         │ ───────────────────────▶│
-    │                         │ ◀───────────────────────│
+    │                         │ ────────────────────────▶│
+    │                         │ ◀────────────────────────│
     │                         │                          │
     │                    Send to Bedrock Claude:         │
     │                    "Analyze these low-rated        │
@@ -1319,13 +1365,13 @@ Feedback (1-2 stars) → AI Analysis → Prompt Improvement → Better Triage �
     │                     improvements"                  │
     │                         │                          │
     │                         │    ┌──────────────┐      │
-    │                         │──▶│ Bedrock      │      │
+    │                         │──▶ │ Bedrock      │      │
     │                         │    │ Claude       │      │
-    │                         │◀──│ (analysis)   │      │
+    │                         │◀── │ (analysis)   │      │
     │                         │    └──────────────┘      │
     │                         │                          │
     │                    save_prompt_adjustment()        │
-    │                         │ ───────────────────────▶│
+    │                         │ ────────────────────────▶│
     │                         │                          │
     │                         │                          │  jira_triage_prompt_
     │                         │                          │  improvements
@@ -1337,29 +1383,29 @@ Feedback (1-2 stars) → AI Analysis → Prompt Improvement → Better Triage �
     │  3. Triage new ticket   │                          │
     │  POST /api/triage/      │                          │
     │       stream            │                          │
-    │───────────────────────▶│                          │
+    │───────────────────────▶ │                          │
     │                         │                          │
     │                    build_feedback_aware_           │
     │                    triage_prompt()                 │
-    │                         │────────────────────────▶│
-    │                         │◀────────────────────────│
+    │                         │─────────────────────────▶│
+    │                         │◀─────────────────────────│
     │                         │                          │
     │                         │   Base prompt            │
     │                         │   + active adjustments   │
     │                         │                          │
     │                    run_triage_agent_stream()       │
     │                         │    ┌──────────────┐      │
-    │                         │──▶│ Bedrock      │      │
+    │                         │──▶ │ Bedrock      │      │
     │                         │    │ Claude       │      │
-    │                         │◀──│ (enhanced)   │      │
+    │                         │◀── │ (enhanced)   │      │
     │                         │    └──────────────┘      │
     │                         │                          │
     │  4. Better analysis!    │                          │
-    │◀────────────────────── │                          │
+    │◀──────────────────────  │                          │
     │                         │                          │
     │  5. Rate higher (4-5)   │                          │
-    │──────────────────────▶ │                          │
-    │                         │ ───────────────────────▶│
+    │──────────────────────▶  │                          │
+    │                         │ ────────────────────────▶│
 ```
 
 ### Feedback API Endpoints
