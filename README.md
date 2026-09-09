@@ -25,8 +25,8 @@ A Retrieval-Augmented Generation (RAG) powered assistant that helps engineers un
 <<<<<<< HEAD
 <<<<<<< HEAD
    ┌──────────────┐      ┌───────────────────┐        ┌─────────────────────┐
-   │   Frontend   │────▶│  FastAPI Backend   │────▶ │  AWS RDS PostgreSQL │
-   │  (AngularJS) │◀────│   (Uvicorn)        │◀──── │  + pgvector         │
+   │   Frontend   │────▶ │  FastAPI Backend  │  ────▶ │  AWS RDS PostgreSQL │
+   │  (AngularJS) │◀──── │   (Uvicorn)       │  ◀──── │  + pgvector         │
    └──────────────┘      └────────┬──────────┘        └─────────────────────┘
 =======
    ┌──────────────┐      ┌───────────────────┐      ┌─────────────────────┐
@@ -1502,11 +1502,7 @@ Automatic analysis after every feedback would be expensive (Bedrock API calls) a
 
 MIT License
 
-<<<<<<< HEAD
-Copyright (c) 2026 Pravin
-=======
 Copyright (c) 2026 Pravin Pardeshi
->>>>>>> a7d33327fb30ae4df5bc14ce1966c6d1ee7578ee
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1525,7 +1521,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-<<<<<<< HEAD
 
 =======
 >>>>>>> a7d33327fb30ae4df5bc14ce1966c6d1ee7578ee
